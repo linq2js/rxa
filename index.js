@@ -1,15 +1,16 @@
 import React from 'react';
-import { connect, Provider } from 'react-redux';
-import { createStore, combineReducers } from 'redux';
-import { createSelector } from 'reselect';
-import { forEachObjIndexed as each, set, view, lensPath, equals, map, identity } from 'ramda';
+import {connect, Provider} from 'react-redux';
+import {createStore, combineReducers} from 'redux';
+import {createSelector} from 'reselect';
+import {forEachObjIndexed as each, set, view, lensPath, equals, map, identity} from 'ramda';
 
-const noop = () => {};
+const noop = () => {
+};
 const cancellationToken = {};
 
 function debounce(f, delay = 0) {
     let timerId;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timerId);
         timerId = setTimeout(f, delay, ...args);
     };
@@ -43,7 +44,7 @@ function createCancellablePromise(promise) {
         }
     );
 
-    cancellablePromise.cancel = function(value = cancellationToken) {
+    cancellablePromise.cancel = function (value = cancellationToken) {
         if (ct) return this;
         //console.log('cancelled');
         if (promise.abort) {
@@ -62,11 +63,39 @@ function createCancellablePromise(promise) {
 }
 
 export function create(initialState = {}) {
-    // create random action key
-    const actionKey = new Date().getTime().toString();
-    const store = createStore((state = initialState, action) => {
+    let storageOptions = {};
+    let autoSaveSubscription;
+
+    function autoSave() {
+        const state = store.getState();
+        localStorage.setItem(storageOptions.key, JSON.stringify(state));
+    }
+
+    function subscribeAutoSave() {
+        if (autoSaveSubscription) {
+            autoSaveSubscription();
+            if (!storageOptions.key) {
+                return;
+            }
+        }
+        autoSaveSubscription = store.subscribe(debounce(autoSave, storageOptions.debounce || 200));
+    }
+
+    if (typeof initialState === 'string') {
+        storageOptions = {key: initialState};
+
+        const serializedAppData = localStorage.getItem(storageOptions.key);
+        if (serializedAppData) {
+            initialState = JSON.parse(serializedAppData) || {};
+        }
+        else {
+            initialState = {};
+        }
+    }
+
+    function defaultReducer(state = initialState, action) {
         // extract action info
-        const { [actionKey]: key, payload } = action;
+        const {[actionKey]: key, payload} = action;
         if (key) {
             // is merge action, merge state and payload
             // need to improve this logic, avoid update call if state is not changed
@@ -92,8 +121,15 @@ export function create(initialState = {}) {
         }
 
         // call custom reducers if any
-        return customReducers ? customReducers(state, action) : state;
-    });
+        return customReducer ? customReducer(state, action) : state;
+    }
+
+    // create random action key
+    const actionKey = new Date().getTime().toString();
+    const store = createStore(defaultReducer);
+
+    subscribeAutoSave();
+
 
     function dispatch(action) {
         //console.log('[dispatch]', action);
@@ -113,7 +149,7 @@ export function create(initialState = {}) {
         },
     };
 
-    let customReducers = null;
+    let customReducer = null;
 
     function dummyDispatch() {
         dispatch({
@@ -140,7 +176,7 @@ export function create(initialState = {}) {
                 if (x instanceof Array) {
                     options = x[1] || options;
                     if (typeof options === 'string') {
-                        options = { name: options };
+                        options = {name: options};
                     }
                     name = options.name || name;
 
@@ -249,11 +285,22 @@ export function create(initialState = {}) {
         }, model);
     }
 
+
     const app = {
         /**
          * create provider
          */
         Provider: (props) => <Provider store={store}>{props.children}</Provider>,
+        autoSave(options = {}) {
+            if (typeof options === 'string') {
+                options = {key: options};
+            }
+
+            storageOptions = options;
+
+            subscribeAutoSave();
+            return app;
+        },
         /**
          * connect component
          * connect(mapper, component)
@@ -270,16 +317,11 @@ export function create(initialState = {}) {
             } else if (args.length === 2) {
                 [mapper, prefetch] = args;
             } else if (args.length === 3) {
-                [mapper, prefetch, prefetchArgsSelector] = args;
+                [mapper, prefetchArgsSelector, prefetch] = args;
             }
 
             // prefetch enabled
             if (prefetch) {
-                // support prefetch args selector
-                if (prefetch instanceof Array) {
-                    [prefetchArgsSelector, prefetch] = prefetch;
-                }
-
                 prefetch = createSelector(prefetch, identity);
 
                 if (prefetchArgsSelector) {
@@ -288,76 +330,92 @@ export function create(initialState = {}) {
             }
 
             // create selector to memoize props
-            const reselect = createSelector((props) => {
+            const reselect = createSelector(identity, (props) => {
                 if (prefetch) {
-                    let fetchResult = prefetchArgsSelector ? prefetch(prefetchArgsSelector(props)) : prefetch();
+                    let result = prefetchArgsSelector ? prefetch(prefetchArgsSelector(props)) : prefetch();
 
-                    if (fetchResult) {
-                        if (!fetchResult.isFetchResult) {
-                            if (fetchResult.then) {
+                    if (result) {
+                        if (!result.isFetchResult) {
+                            if (result.then) {
                                 // init fetching status
-                                fetchResult.isFetchResult = true;
-                                fetchResult.status = 'loading';
-                                fetchResult.loading = true;
+                                result.isFetchResult = true;
+                                result.status = 'loading';
+                                result.loading = true;
 
                                 // handle async fetching
-                                fetchResult.then(
+                                result.then(
                                     (x) => {
-                                        fetchResult.success = true;
-                                        fetchResult.loading = false;
-                                        fetchResult.status = 'success';
-                                        fetchResult.payload = x;
+                                        result.success = true;
+                                        result.loading = false;
+                                        result.status = 'success';
+                                        result.payload = x;
                                         dummyDispatch();
                                     },
                                     (x) => {
-                                        fetchResult.fail = true;
-                                        fetchResult.loading = false;
-                                        fetchResult.status = 'fail';
-                                        fetchResult.payload = x;
+                                        result.fail = true;
+                                        result.loading = false;
+                                        result.status = 'fail';
+                                        result.payload = x;
                                         dummyDispatch();
                                     }
                                 );
                             } else {
-                                fetchResult = {
+                                result = {
                                     isFetchResult: true,
                                     status: 'success',
                                     success: true,
-                                    payload: fetchResult,
+                                    payload: result,
                                 };
                             }
                         } else {
                             // do not touch
                         }
                     } else {
-                        fetchResult = {
+                        result = {
                             status: 'success',
                             success: true,
-                            payload: fetchResult,
+                            payload: result,
                         };
                     }
 
-                    props.$fetch = fetchResult;
+                    // clone fetching result to make sure mergedProps changed
+                    if (result && result.then && (result.success || result.fail)) {
+                        result = {
+                            isFetchResult: true,
+                            fail: result.fail,
+                            success: result.success,
+                            status: result.status,
+                            payload: result.payload
+                        };
+                    }
+
+                    props.$fetch = result;
                 }
                 return props;
-            }, identity);
+            });
             return connect(
-                (state) => ({ state }),
+                (state) => ({state}),
                 null,
-                ({ state }, dispatchProps, ownProps) => reselect(mapper(state, actionWrappers, ownProps)) || ownProps
+                ({state}, dispatchProps, ownProps) => reselect(mapper(state, actionWrappers, ownProps)) || ownProps
             );
         },
         /**
          * register single action
          */
         action(key, action, options) {
+            if (!(action instanceof Function)) {
+                options = action;
+                action = identity;
+            }
+
             registerActions(null, set(pathToLens(key), [action, options], {}));
             return app;
         },
         /**
          * add custom reducers. This is helpful for 3rd lib which need reducer (Router, Log...)
          */
-        reducers(value) {
-            customReducers = combineReducers(value);
+        reducer(value) {
+            customReducer = value instanceof Function ? value : combineReducers(value);
             return app;
         },
         /**

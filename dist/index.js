@@ -94,9 +94,36 @@ function createCancellablePromise(promise) {
 function create() {
     var initialState = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-    // create random action key
-    var actionKey = new Date().getTime().toString();
-    var store = (0, _redux.createStore)(function () {
+    var storageOptions = {};
+    var autoSaveSubscription = void 0;
+
+    function autoSave() {
+        var state = store.getState();
+        localStorage.setItem(storageOptions.key, JSON.stringify(state));
+    }
+
+    function subscribeAutoSave() {
+        if (autoSaveSubscription) {
+            autoSaveSubscription();
+            if (!storageOptions.key) {
+                return;
+            }
+        }
+        autoSaveSubscription = store.subscribe(debounce(autoSave, storageOptions.debounce || 200));
+    }
+
+    if (typeof initialState === 'string') {
+        storageOptions = { key: initialState };
+
+        var serializedAppData = localStorage.getItem(storageOptions.key);
+        if (serializedAppData) {
+            initialState = JSON.parse(serializedAppData) || {};
+        } else {
+            initialState = {};
+        }
+    }
+
+    function defaultReducer() {
         var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : initialState;
         var action = arguments[1];
 
@@ -128,8 +155,14 @@ function create() {
         }
 
         // call custom reducers if any
-        return customReducers ? customReducers(state, action) : state;
-    });
+        return customReducer ? customReducer(state, action) : state;
+    }
+
+    // create random action key
+    var actionKey = new Date().getTime().toString();
+    var store = (0, _redux.createStore)(defaultReducer);
+
+    subscribeAutoSave();
 
     function _dispatch5(action) {
         //console.log('[dispatch]', action);
@@ -151,7 +184,7 @@ function create() {
         }
     };
 
-    var customReducers = null;
+    var customReducer = null;
 
     function dummyDispatch() {
         var _dispatch2;
@@ -297,6 +330,19 @@ function create() {
                 props.children
             );
         },
+        autoSave: function autoSave() {
+            var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+            if (typeof options === 'string') {
+                options = { key: options };
+            }
+
+            storageOptions = options;
+
+            subscribeAutoSave();
+            return app;
+        },
+
         /**
          * connect component
          * connect(mapper, component)
@@ -327,22 +373,12 @@ function create() {
                 var _args3 = _slicedToArray(args, 3);
 
                 mapper = _args3[0];
-                prefetch = _args3[1];
-                prefetchArgsSelector = _args3[2];
+                prefetchArgsSelector = _args3[1];
+                prefetch = _args3[2];
             }
 
             // prefetch enabled
             if (prefetch) {
-                // support prefetch args selector
-                if (prefetch instanceof Array) {
-                    var _prefetch = prefetch;
-
-                    var _prefetch2 = _slicedToArray(_prefetch, 2);
-
-                    prefetchArgsSelector = _prefetch2[0];
-                    prefetch = _prefetch2[1];
-                }
-
                 prefetch = (0, _reselect.createSelector)(prefetch, _ramda.identity);
 
                 if (prefetchArgsSelector) {
@@ -351,55 +387,66 @@ function create() {
             }
 
             // create selector to memoize props
-            var reselect = (0, _reselect.createSelector)(function (props) {
+            var reselect = (0, _reselect.createSelector)(_ramda.identity, function (props) {
                 if (prefetch) {
-                    var fetchResult = prefetchArgsSelector ? prefetch(prefetchArgsSelector(props)) : prefetch();
+                    var result = prefetchArgsSelector ? prefetch(prefetchArgsSelector(props)) : prefetch();
 
-                    if (fetchResult) {
-                        if (!fetchResult.isFetchResult) {
-                            if (fetchResult.then) {
+                    if (result) {
+                        if (!result.isFetchResult) {
+                            if (result.then) {
                                 // init fetching status
-                                fetchResult.isFetchResult = true;
-                                fetchResult.status = 'loading';
-                                fetchResult.loading = true;
+                                result.isFetchResult = true;
+                                result.status = 'loading';
+                                result.loading = true;
 
                                 // handle async fetching
-                                fetchResult.then(function (x) {
-                                    fetchResult.success = true;
-                                    fetchResult.loading = false;
-                                    fetchResult.status = 'success';
-                                    fetchResult.payload = x;
+                                result.then(function (x) {
+                                    result.success = true;
+                                    result.loading = false;
+                                    result.status = 'success';
+                                    result.payload = x;
                                     dummyDispatch();
                                 }, function (x) {
-                                    fetchResult.fail = true;
-                                    fetchResult.loading = false;
-                                    fetchResult.status = 'fail';
-                                    fetchResult.payload = x;
+                                    result.fail = true;
+                                    result.loading = false;
+                                    result.status = 'fail';
+                                    result.payload = x;
                                     dummyDispatch();
                                 });
                             } else {
-                                fetchResult = {
+                                result = {
                                     isFetchResult: true,
                                     status: 'success',
                                     success: true,
-                                    payload: fetchResult
+                                    payload: result
                                 };
                             }
                         } else {
                             // do not touch
                         }
                     } else {
-                        fetchResult = {
+                        result = {
                             status: 'success',
                             success: true,
-                            payload: fetchResult
+                            payload: result
                         };
                     }
 
-                    props.$fetch = fetchResult;
+                    // clone fetching result to make sure mergedProps changed
+                    if (result && result.then && (result.success || result.fail)) {
+                        result = {
+                            isFetchResult: true,
+                            fail: result.fail,
+                            success: result.success,
+                            status: result.status,
+                            payload: result.payload
+                        };
+                    }
+
+                    props.$fetch = result;
                 }
                 return props;
-            }, _ramda.identity);
+            });
             return (0, _reactRedux.connect)(function (state) {
                 return { state: state };
             }, null, function (_ref, dispatchProps, ownProps) {
@@ -412,6 +459,11 @@ function create() {
          * register single action
          */
         action: function action(key, _action, options) {
+            if (!(_action instanceof Function)) {
+                options = _action;
+                _action = _ramda.identity;
+            }
+
             registerActions(null, (0, _ramda.set)(pathToLens(key), [_action, options], {}));
             return app;
         },
@@ -419,8 +471,8 @@ function create() {
         /**
          * add custom reducers. This is helpful for 3rd lib which need reducer (Router, Log...)
          */
-        reducers: function reducers(value) {
-            customReducers = (0, _redux.combineReducers)(value);
+        reducer: function reducer(value) {
+            customReducer = value instanceof Function ? value : (0, _redux.combineReducers)(value);
             return app;
         },
 

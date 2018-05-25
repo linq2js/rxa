@@ -9,6 +9,7 @@ It supports developer to build React app faster.
 4. Support async redux action
 5. Simple action dispatching
 6. Auto applying reselect to improve app rendering performance
+7. Auto load/save app state using localStorage
 
 ## Examples:
 1. <a href="#hello-world">Hello world</a>
@@ -84,7 +85,9 @@ const UserInfo = userInfoConnect(({ $fetch }) => (
           : JSON.stringify($fetch.payload, null, 4)}
     </pre>
     {$fetch.payload && (
-      <img src={$fetch.payload.avatar_url} width={200} alt="User Avatar" />
+      <a href={$fetch.payload.html_url} target="_blank">
+        <img src={$fetch.payload.avatar_url} width={200} alt="User Avatar" />
+      </a>
     )}
   </div>
 ));
@@ -112,3 +115,16 @@ render(
 ```
 
 ## API References:
+1. <a href="#create">create</a>
+1. <a href="#app-action">app.action</a>
+1. <a href="#app-actions">app.actions</a>
+1. <a href="#app-actions">app.autoSave</a>
+1. <a href="#app-connect">app.connect</a>
+1. <a href="#app-debounce">app.debounce</a>
+1. <a href="#app-dispatch">app.dispatch</a>
+1. <a href="#app-getstate">app.getState</a>
+1. <a href="#app-provider">app.Provider</a>
+1. <a href="#app-reducers">app.reducers</a>
+1. <a href="#app-selector">app.selector</a>
+1. <a href="#app-subscribe">app.subscribe</a>
+1. <a href="#app-test">app.test</a>

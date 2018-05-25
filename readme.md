@@ -59,9 +59,9 @@ import { create } from "rxa";
 
 // create app with intial state
 const app = create({ user: "linq2js" }).action(
-  "user",
+  "user", // state prop
   x => x.toLowerCase(),
-  "updateUser"
+  "updateUser" // action name
 );
 
 const userInfoConnect = app.connect(
@@ -73,6 +73,7 @@ const userInfoConnect = app.connect(
   user => fetch(`https://api.github.com/users/${user}`).then(x => x.json())
 );
 
+// create user info component
 const UserInfo = userInfoConnect(({ $fetch }) => (
   <div>
     <pre>
@@ -93,6 +94,7 @@ const userInputConnect = app.connect(
   ({ user }, { updateUser }) => ({ user, updateUser })
 );
 
+// create user input  component
 const UserInput = userInputConnect(({ user, updateUser }) => (
   <input type="text" onChange={e => updateUser(e.target.value)} value={user} />
 ));
@@ -109,4 +111,4 @@ render(
 
 ```
 
-## Docs:
+## API References:

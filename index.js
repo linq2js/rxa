@@ -62,7 +62,7 @@ function createCancellablePromise(promise) {
     return cancellablePromise;
 }
 
-export function create(initialState = {}) {
+export function create(initialState = {}, defState = {}) {
     let storageOptions = {};
     let autoSaveSubscription;
 
@@ -86,10 +86,10 @@ export function create(initialState = {}) {
 
         const serializedAppData = localStorage.getItem(storageOptions.key);
         if (serializedAppData) {
-            initialState = JSON.parse(serializedAppData) || {};
+            initialState = JSON.parse(serializedAppData) || defState;
         }
         else {
-            initialState = {};
+            initialState = defState;
         }
     }
 

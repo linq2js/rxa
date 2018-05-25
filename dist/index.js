@@ -93,6 +93,7 @@ function createCancellablePromise(promise) {
 
 function create() {
     var initialState = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    var defState = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
     var storageOptions = {};
     var autoSaveSubscription = void 0;
@@ -117,9 +118,9 @@ function create() {
 
         var serializedAppData = localStorage.getItem(storageOptions.key);
         if (serializedAppData) {
-            initialState = JSON.parse(serializedAppData) || {};
+            initialState = JSON.parse(serializedAppData) || defState;
         } else {
-            initialState = {};
+            initialState = defState;
         }
     }
 

@@ -11,7 +11,7 @@ It supports developer to build React app faster.
 
 ## Examples:
 ### Hello world !!!
-<a href="https://codesandbox.io/s/43kn33ko0x">Codesandbox</a>
+<a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
 ```js
 
 import React from "react";

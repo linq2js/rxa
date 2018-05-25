@@ -46,4 +46,64 @@ render(
 
 ```
 
+### Prefetchable Component
+<a href="https://codesandbox.io/s/7j3x7qq5x0">codesandbox.io</a>
+```jsx
+
+import React from "react";
+import { render } from "react-dom";
+import { create } from "rxa";
+
+// create app with intial state
+const app = create({ user: "linq2js" }).action(
+  "user",
+  x => x.toLowerCase(),
+  "updateUser"
+);
+
+const userInfoConnect = app.connect(
+  // extract user from store
+  ({ user }) => ({ user }),
+  // pass user to fetching action
+  ({ user }) => user,
+  // extract user from props and pass it to fetching action
+  user => fetch(`https://api.github.com/users/${user}`).then(x => x.json())
+);
+
+const UserInfo = userInfoConnect(({ $fetch }) => (
+  <div>
+    <pre>
+      {$fetch.error
+        ? JSON.stringify($fetch.error)
+        : $fetch.loading
+          ? "Fetching user data"
+          : JSON.stringify($fetch.payload, null, 4)}
+    </pre>
+    {$fetch.payload && (
+      <img src={$fetch.payload.avatar_url} width={200} alt="User Avatar" />
+    )}
+  </div>
+));
+
+const userInputConnect = app.connect(
+  // extract user from store and updateUser from action collection
+  ({ user }, { updateUser }) => ({ user, updateUser })
+);
+
+const UserInput = userInputConnect(({ user, updateUser }) => (
+  <input type="text" onChange={e => updateUser(e.target.value)} value={user} />
+));
+
+render(
+  <app.Provider>
+    <div>
+      <UserInput />
+      <UserInfo />
+    </div>
+  </app.Provider>,
+  document.getElementById("root") || document.body
+);
+
+```
+
 ## Docs:

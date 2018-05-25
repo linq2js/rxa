@@ -8,6 +8,7 @@ It supports developer to build React app faster.
 3. No reducer needed
 4. Support async redux action
 5. Simple action dispatching
+6. Auto applying reselect to improve app rendering performance
 
 ## Examples:
 ### Hello world
@@ -18,15 +19,23 @@ import React from "react";
 import { render } from "react-dom";
 import { create } from "rxa";
 
-const app = create({ name: "World" }).action("hello", (name, postfix) =>
-  alert(`Hello ${name}${postfix}`)
+// create app with intial state
+const app = create({ name: "World" })
+  // register hello action
+  .action("hello", (name, postfix) => alert(`Hello ${name}${postfix}`));
+
+// create connection
+const helloButtonConnect = app.connect(
+  // properties mapper, it retrieves 3 arguments state, actions, ownProps
+  ({ name }, { hello }) => ({
+    name,
+    hello
+  })
 );
 
-const HelloButton = app.connect(({ name }, { hello }) => ({ name, hello }))(
-  ({ name, hello }) => (
-    <button onClick={() => hello(name, " !!!")}>Click me</button>
-  )
-);
+const HelloButton = helloButtonConnect(({ name, hello }) => (
+  <button onClick={() => hello(name, " !!!")}>Click me</button>
+));
 
 render(
   <app.Provider>
@@ -34,7 +43,6 @@ render(
   </app.Provider>,
   document.body
 );
-
 
 ```
 

@@ -12,7 +12,7 @@ It supports developer to build React app faster.
 ## Examples:
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
-```js
+```jsx
 
 import React from "react";
 import { render } from "react-dom";

@@ -14,7 +14,7 @@ It supports developer to build React app faster.
 ## Examples:
 1. <a href="#hello-world">Hello world</a>
 1. <a href="#prefetchable-component">Prefetchable component</a>
-1. <a href="#auto-load-save-app-state">Auto load/save app state</a>
+1. <a href="#auto-loadsave-app-state">Auto load/save app state</a>
 
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>

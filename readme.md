@@ -11,6 +11,9 @@ It supports developer to build React app faster.
 6. Auto applying reselect to improve app rendering performance
 
 ## Examples:
+1. <a href="#hello-world">Hello world</a>
+2. <a href="#prefetchable-component">Prefetchable component</a>
+
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
 ```jsx
@@ -46,7 +49,7 @@ render(
 
 ```
 
-### Prefetchable Component
+### Prefetchable component
 <a href="https://codesandbox.io/s/7j3x7qq5x0">codesandbox.io</a>
 ```jsx
 

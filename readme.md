@@ -10,7 +10,7 @@ It supports developer to build React app faster.
 5. Simple action dispatching
 
 ## Examples:
-### Hello world !!!
+### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
 ```js
 

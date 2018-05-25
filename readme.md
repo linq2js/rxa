@@ -115,6 +115,7 @@ render(
 
 ```
 ### Auto load/save app state
+<a href="https://codesandbox.io/s/y2qqzxm19v">codesandbox.io</a>
 ```jsx
 
 import React from "react";

@@ -31,7 +31,7 @@ const app = create({ name: "World" })
 
 // create connection
 const helloButtonConnect = app.connect(
-  // properties mapper, it retrieves 3 arguments state, actions, ownProps
+  // properties mapper, it receives 3 arguments state, actions, ownProps
   ({ name }, { hello }) => ({
     name,
     hello
@@ -129,7 +129,7 @@ const app = create("appState", { counter: 0 })
 
 // create connection
 const counterConnect = app.connect(
-  // properties mapper, it retrieves 3 arguments state, actions, ownProps
+  // properties mapper, it receives 3 arguments state, actions, ownProps
   ({ counter }, { updateCounter }) => ({
     counter,
     updateCounter

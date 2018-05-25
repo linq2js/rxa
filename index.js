@@ -1,16 +1,15 @@
 import React from 'react';
-import {connect, Provider} from 'react-redux';
-import {createStore, combineReducers} from 'redux';
-import {createSelector} from 'reselect';
-import {forEachObjIndexed as each, set, view, lensPath, equals, map, identity} from 'ramda';
+import { connect, Provider } from 'react-redux';
+import { createStore, combineReducers } from 'redux';
+import { createSelector } from 'reselect';
+import { forEachObjIndexed as each, set, view, lensPath, equals, map, identity } from 'ramda';
 
-const noop = () => {
-};
+const noop = () => {};
 const cancellationToken = {};
 
 function debounce(f, delay = 0) {
     let timerId;
-    return function (...args) {
+    return function(...args) {
         clearTimeout(timerId);
         timerId = setTimeout(f, delay, ...args);
     };
@@ -44,7 +43,7 @@ function createCancellablePromise(promise) {
         }
     );
 
-    cancellablePromise.cancel = function (value = cancellationToken) {
+    cancellablePromise.cancel = function(value = cancellationToken) {
         if (ct) return this;
         //console.log('cancelled');
         if (promise.abort) {
@@ -67,7 +66,7 @@ export function create(initialState = {}) {
     const actionKey = new Date().getTime().toString();
     const store = createStore((state = initialState, action) => {
         // extract action info
-        const {[actionKey]: key, payload} = action;
+        const { [actionKey]: key, payload } = action;
         if (key) {
             // is merge action, merge state and payload
             // need to improve this logic, avoid update call if state is not changed
@@ -141,7 +140,7 @@ export function create(initialState = {}) {
                 if (x instanceof Array) {
                     options = x[1] || options;
                     if (typeof options === 'string') {
-                        options = {name: options};
+                        options = { name: options };
                     }
                     name = options.name || name;
 
@@ -342,9 +341,9 @@ export function create(initialState = {}) {
                 return props;
             }, identity);
             return connect(
-                (state) => ({state}),
+                (state) => ({ state }),
                 null,
-                ({state}, dispatchProps, ownProps) => reselect(mapper(state, actionWrappers, ownProps)) || ownProps
+                ({ state }, dispatchProps, ownProps) => reselect(mapper(state, actionWrappers, ownProps)) || ownProps
             );
         },
         /**

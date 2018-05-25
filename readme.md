@@ -4,16 +4,17 @@ An lib to create an application which is based on React + Redux + Rxjs + Ramda +
 It supports developer to build React app faster.
 ## Cool features:
 1. Support auto prefetch components
-2. Support lazy module loading, dynamic actions
-3. No reducer needed
-4. Support async redux action
-5. Simple action dispatching
-6. Auto applying reselect to improve app rendering performance
-7. Auto load/save app state using localStorage
+1. Support lazy module loading, dynamic actions
+1. No reducer needed
+1. Support async redux action
+1. Simple action dispatching
+1. Auto applying reselect to improve app rendering performance
+1. Auto load/save app state using localStorage
 
 ## Examples:
 1. <a href="#hello-world">Hello world</a>
-2. <a href="#prefetchable-component">Prefetchable component</a>
+1. <a href="#prefetchable-component">Prefetchable component</a>
+1. <a href="#auto-load-save-app-state">Auto load/save app state</a>
 
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
@@ -113,6 +114,40 @@ render(
 );
 
 ```
+### Auto load/save app state
+```jsx
+
+import React from "react";
+import { render } from "react-dom";
+import { create } from "rxa";
+
+// create app with intial state
+const app = create("appState", { counter: 0 })
+  // register hello action
+  .action("counter", () => getState => getState().counter + 1, "updateCounter");
+
+// create connection
+const counterConnect = app.connect(
+  // properties mapper, it retrieves 3 arguments state, actions, ownProps
+  ({ counter }, { updateCounter }) => ({
+    counter,
+    updateCounter
+  })
+);
+
+const Counter = counterConnect(({ counter, updateCounter }) => (
+  <button onClick={updateCounter}>Counter: {counter}</button>
+));
+
+render(
+  <app.Provider>
+    <Counter />
+  </app.Provider>,
+  document.getElementById("root") || document.body
+);
+
+```
+
 
 ## API References:
 1. <a href="#create">create</a>

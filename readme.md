@@ -155,18 +155,18 @@ render(
 
 ## API References:
 1. <a href="#create">create</a>
-1. <a href="#app-action">app.action</a>
-1. <a href="#app-actions">app.actions</a>
-1. <a href="#app-autosave">app.autoSave</a>
-1. <a href="#app-connect">app.connect</a>
-1. <a href="#app-debounce">app.debounce</a>
-1. <a href="#app-dispatch">app.dispatch</a>
-1. <a href="#app-getstate">app.getState</a>
-1. <a href="#app-invoke">app.invoke</a>
-1. <a href="#app-provider">app.Provider</a>
-1. <a href="#app-reducer">app.reducer</a>
-1. <a href="#app-selector">app.selector</a>
-1. <a href="#app-subscribe">app.subscribe</a>
+1. <a href="#appaction">app.action</a>
+1. <a href="#appactions">app.actions</a>
+1. <a href="#appautosave">app.autoSave</a>
+1. <a href="#appconnect">app.connect</a>
+1. <a href="#appdebounce">app.debounce</a>
+1. <a href="#appdispatch">app.dispatch</a>
+1. <a href="#appgetstate">app.getState</a>
+1. <a href="#appinvoke">app.invoke</a>
+1. <a href="#appprovider">app.Provider</a>
+1. <a href="#appreducer">app.reducer</a>
+1. <a href="#appselector">app.selector</a>
+1. <a href="#appsubscribe">app.subscribe</a>
 
 ### create
 **create(initialState: object): app**<br/>

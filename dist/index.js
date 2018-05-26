@@ -225,6 +225,10 @@ function create() {
                     var currentOptions = actionWrapper.options || options;
                     delete actionWrapper.options;
 
+                    if (currentOptions.dispatchStatus) {
+                        currentOptions.single = true;
+                    }
+
                     // cancel prev executing
                     if (currentOptions.single && actionWrapper.lastResult && actionWrapper.lastResult.cancel) {
                         actionWrapper.lastResult.cancel();
@@ -332,7 +336,7 @@ function create() {
             );
         },
         autoSave: function autoSave() {
-            var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+            var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { key: 'appState' };
 
             if (typeof options === 'string') {
                 options = { key: options };
@@ -522,9 +526,9 @@ function create() {
         },
 
         /**
-         * run test for specific action
+         *
          */
-        test: function test(actionPath) {
+        invoke: function invoke(actionPath) {
             //console.log('[test]', actionPath);
             var action = (0, _ramda.view)(pathToLens(actionPath), actionWrappers);
 

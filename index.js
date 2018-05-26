@@ -189,6 +189,10 @@ export function create(initialState = {}, defState = {}) {
                     const currentOptions = actionWrapper.options || options;
                     delete actionWrapper.options;
 
+                    if (currentOptions.dispatchStatus) {
+                        currentOptions.single = true;
+                    }
+
                     // cancel prev executing
                     if (currentOptions.single && actionWrapper.lastResult && actionWrapper.lastResult.cancel) {
                         actionWrapper.lastResult.cancel();
@@ -291,7 +295,7 @@ export function create(initialState = {}, defState = {}) {
          * create provider
          */
         Provider: (props) => <Provider store={store}>{props.children}</Provider>,
-        autoSave(options = {}) {
+        autoSave(options = { key: 'appState' }) {
             if (typeof options === 'string') {
                 options = {key: options};
             }
@@ -452,9 +456,9 @@ export function create(initialState = {}, defState = {}) {
             return store.getState();
         },
         /**
-         * run test for specific action
+         *
          */
-        test(actionPath, ...args) {
+        invoke(actionPath, ...args) {
             //console.log('[test]', actionPath);
             const action = view(pathToLens(actionPath), actionWrappers);
             return action(...args);

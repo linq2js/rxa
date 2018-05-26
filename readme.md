@@ -154,13 +154,110 @@ render(
 1. <a href="#create">create</a>
 1. <a href="#app-action">app.action</a>
 1. <a href="#app-actions">app.actions</a>
-1. <a href="#app-actions">app.autoSave</a>
+1. <a href="#app-autosave">app.autoSave</a>
 1. <a href="#app-connect">app.connect</a>
 1. <a href="#app-debounce">app.debounce</a>
 1. <a href="#app-dispatch">app.dispatch</a>
 1. <a href="#app-getstate">app.getState</a>
+1. <a href="#app-invoke">app.invoke</a>
 1. <a href="#app-provider">app.Provider</a>
-1. <a href="#app-reducers">app.reducers</a>
+1. <a href="#app-reducer">app.reducer</a>
 1. <a href="#app-selector">app.selector</a>
 1. <a href="#app-subscribe">app.subscribe</a>
-1. <a href="#app-test">app.test</a>
+
+### create
+#### create(initialState: object): app
+Create new application with initial state
+
+#### create(localStorageKey: string, defaultState: object): app
+Create new application and load state from localStorage with give key. If nothing loaded, defaultState will be used
+
+### app.action
+#### app.action(statePropAndActionName: string, action: function): app
+Register new action. Action result will update to given state property name automatically. Supports object property path
+
+#### app.action(stateProp: string, action: function, actionName: string): app
+Register new action with specified actionName. Action result will update to given state property name automatically. Supports object property path
+
+#### app.action(stateProp: string, action: function, options: ActionOptions): app
+Register new action with specified options. Action result will update to given state property name automatically. Supports object property path. Available options:
+- **single: bool** For async action only. Action only executes once at the same time. The previous execution will be stopped if there is new execution.
+- **dispatchStatus** For async action only. Will dispatch executing status of this action when it is changed (loading, success, fail...).
+```js
+    app.connect((state, actions) => {
+       const { submitAsync } = actions;
+       console.log(submitAsync.status);
+       console.log(submitAsync.loading);
+       console.log(submitAsync.success);
+       console.log(submitAsync.fail);
+    });
+``` 
+
+### app.actions
+#### app.actions(actionModel: object): app
+Register multiple actions at once
+```js
+    app.actions({
+        username: x => x, // change user
+        password: x => x, // change password
+        __: [x => x, { single: true, name: 'submit' }], // register action with an options
+        account: { // can register new action under specified action group/namespace
+            create: x => x
+        }
+    });
+``` 
+
+### app.autoSave
+#### app.autoSave(): app
+Enable auto save with default options
+
+#### app.autoSave(localStorageKey: string): app
+Enable auto save with specified localStorageKey
+
+#### app.autoSave(options: object): app
+Enable auto save with an options. Available options:
+- **key: string** localStorage key to be used for saving app state
+- **debounce: number** specific debounce time to delay saving
+
+### app.connect
+#### app.connect(propsMapper: (state, actions) => object): ReduxConnection
+Create Redux Connection with specified propsMapper
+
+#### app.connect(propsMapper: (state, actions) => object, prefetch: () => Promise: ReduxConnection
+Create Redux Connection with specified propsMapper and specific prefetch action. 
+
+#### app.connect(propsMapper: (state, actions) => object, prefetchArgsSelector: (props) => prefetchArgs, prefetch: prefetchArgs => Promise): ReduxConnection
+Create Redux Connection with specified propsMapper and specific prefetch action. prefetchArgsSelector will be called to select args for prefetch action 
+
+See <a href="#prefetchable-component">Prefetchable component</a> for usage.
+
+### app.debounce
+#### app.debounce(func: function, delay: number)
+Create debounced function wrapper with specified delay time
+
+### app.dispatch
+#### app.dispatch(action): app
+Call redux store.dispatch(action)
+
+
+### app.getState
+#### app.getState(): state
+Call redux store.getState()
+
+### app.invoke
+
+### app.Provider
+Return binded Redux Provider
+
+### app.reducer
+#### app.reducer(reducer: function)
+Register redux reducer for special purpose
+
+
+### app.selector
+#### app.selector(...args): Selector
+Call reselect.createSelector(...args)
+
+### app.subscribe
+#### app.subscribe(state => any): Subscription
+Adds a change listener. It will be called any time an action is dispatched, and some part of the state tree may potentially have changed

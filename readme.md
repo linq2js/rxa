@@ -15,6 +15,7 @@ It supports developer to build React app faster.
 1. <a href="#hello-world">Hello world</a>
 1. <a href="#prefetchable-component">Prefetchable component</a>
 1. <a href="#auto-loadsave-app-state">Auto load/save app state</a>
+1. <a href="https://codesandbox.io/s/74l5kzxyx0">Todo list</a>
 
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
@@ -186,7 +187,7 @@ Register new action with specified options. Action result will update to given s
 - **single: bool** For async action only. Action only executes once at the same time. The previous execution will be stopped if there is new execution.
 - **dispatchStatus** For async action only. Will dispatch executing status of this action when it is changed (loading, success, fail...).
 ```js
-    app.connect((state, actions) => {
+    app.connect(() => (actions) => {
        const { submitAsync } = actions;
        console.log(submitAsync.status);
        console.log(submitAsync.loading);
@@ -194,6 +195,23 @@ Register new action with specified options. Action result will update to given s
        console.log(submitAsync.fail);
     });
 ``` 
+Instead of returning a partial state object directly, an action can return a function that takes action collection. Action collection contains margin actions ($state, $current, $done, $fail, $success)
+```js
+
+app.connect(() => ( actions ) => {
+   const { $state, $current, $done, $fail, $success } = actions;
+   
+   $state(); // get current state
+   $current(); // get current state prop value
+   $done(() => alert('done')); // execute callback once current action done
+   $success(() => alert('success')); // execute callback once current action success
+   $fail(() => alert('fail')); // execute callback once current action fail
+   
+   return fetch(url);
+});
+
+```
+
 
 ### app.actions
 **app.actions(actionModel: object): app**<br/>

@@ -187,7 +187,7 @@ Register new action with specified options. Action result will update to given s
 - **single: bool** For async action only. Action only executes once at the same time. The previous execution will be stopped if there is new execution.
 - **dispatchStatus** For async action only. Will dispatch executing status of this action when it is changed (loading, success, fail...).
 ```js
-    app.connect(() => (actions) => {
+    app.connect((state, actions) => {
        const { submitAsync } = actions;
        console.log(submitAsync.status);
        console.log(submitAsync.loading);
@@ -198,7 +198,7 @@ Register new action with specified options. Action result will update to given s
 Instead of returning a partial state object directly, an action can return a function that takes action collection. Action collection contains margin actions ($state, $current, $done, $fail, $success)
 ```js
 
-app.connect(() => ( actions ) => {
+app.action('test', () => ( actions ) => {
    const { $state, $current, $done, $fail, $success } = actions;
    
    $state(); // get current state

@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
@@ -10,17 +10,17 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 
 exports.create = create;
 
-var _react = require('react');
+var _react = require("react");
 
 var _react2 = _interopRequireDefault(_react);
 
-var _reactRedux = require('react-redux');
+var _reactRedux = require("react-redux");
 
-var _redux = require('redux');
+var _redux = require("redux");
 
-var _reselect = require('reselect');
+var _reselect = require("reselect");
 
-var _ramda = require('ramda');
+var _ramda = require("ramda");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -113,7 +113,7 @@ function create() {
         autoSaveSubscription = store.subscribe(debounce(autoSave, storageOptions.debounce || 200));
     }
 
-    if (typeof initialState === 'string') {
+    if (typeof initialState === "string") {
         storageOptions = { key: initialState };
 
         var serializedAppData = localStorage.getItem(storageOptions.key);
@@ -135,7 +135,7 @@ function create() {
         if (key) {
             // is merge action, merge state and payload
             // need to improve this logic, avoid update call if state is not changed
-            if (key === '@') {
+            if (key === "@") {
                 // extract properties to compare
                 var stateToCompare = (0, _ramda.map)(function (v, k) {
                     return state[k];
@@ -165,7 +165,7 @@ function create() {
 
     subscribeAutoSave();
 
-    function _dispatch5(action) {
+    function _dispatch3(action) {
         //console.log('[dispatch]', action);
         store.dispatch(action);
     }
@@ -179,9 +179,9 @@ function create() {
 
             var changes = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-            _dispatch5((_dispatch = {
-                type: 'merge'
-            }, _defineProperty(_dispatch, actionKey, '@'), _defineProperty(_dispatch, 'payload', changes), _dispatch));
+            _dispatch3((_dispatch = {
+                type: "merge"
+            }, _defineProperty(_dispatch, actionKey, "@"), _defineProperty(_dispatch, "payload", changes), _dispatch));
         }
     };
 
@@ -190,39 +190,50 @@ function create() {
     function dummyDispatch() {
         var _dispatch2;
 
-        _dispatch5((_dispatch2 = {
-            type: '@dummy'
-        }, _defineProperty(_dispatch2, actionKey, '__dummy__'), _defineProperty(_dispatch2, 'payload', Math.random() * new Date().getTime()), _dispatch2));
+        _dispatch3((_dispatch2 = {
+            type: "@dummy"
+        }, _defineProperty(_dispatch2, actionKey, "__dummy__"), _defineProperty(_dispatch2, "payload", Math.random() * new Date().getTime()), _dispatch2));
     }
 
     function registerActions(parentKey, model) {
         (0, _ramda.forEachObjIndexed)(function (x, k) {
             var originalKey = k;
+            var originalKeyParts = originalKey.split(":");
+            var originalActionName = void 0;
             var options = {};
+
+            // supports named actionName:stateProp
+            if (originalKeyParts.length > 1) {
+                k = originalKeyParts[1];
+                originalActionName = originalKeyParts[0];
+            }
+
             if (parentKey) {
-                k = parentKey + '.' + k;
+                k = parentKey + "." + k;
             }
 
             // action setting can be Function or Array
             // prop: Function
             // prop: [actionName, Function]
             if (x instanceof Function || x instanceof Array) {
-                var name = x.name || originalKey;
+                // try to get action name
+                var actionName = originalActionName || x.name || originalKey;
 
                 if (x instanceof Array) {
                     options = x[1] || options;
-                    if (typeof options === 'string') {
+                    if (typeof options === "string") {
                         options = { name: options };
                     }
-                    name = options.name || name;
+                    actionName = options.name || actionName;
 
                     x = x[0];
                 }
 
-                var actionPath = (parentKey ? parentKey + '.' : '') + name;
+                var actionPath = (parentKey ? parentKey + "." : "") + actionName;
                 // create action wrapper
                 var actionWrapper = function actionWrapper() {
                     var currentOptions = actionWrapper.options || options;
+                    var dispatchQueue = [];
                     delete actionWrapper.options;
 
                     if (currentOptions.dispatchStatus) {
@@ -235,6 +246,24 @@ function create() {
                     }
 
                     delete actionWrapper.lastResult;
+
+                    function addToDispatchQueue(type, callback) {
+                        dispatchQueue.push({ type: type, callback: callback });
+                    }
+
+                    function trigger(dispatchData) {
+                        for (var _len2 = arguments.length, types = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+                            types[_key2 - 1] = arguments[_key2];
+                        }
+
+                        dispatchData && _dispatch3(dispatchData);
+
+                        dispatchQueue.forEach(function (i) {
+                            if ((0, _ramda.contains)(i.type, types)) {
+                                i.callback();
+                            }
+                        });
+                    }
 
                     var dispatchStatus = !currentOptions.dispatchStatus ? noop : dummyDispatch;
 
@@ -249,7 +278,25 @@ function create() {
 
                         // is lazy call, (...args) => (getState, actions) => actionBody
                         if (actionResult instanceof Function) {
-                            actionResult = actionResult(store.getState, actionWrappers);
+                            actionResult = actionResult(_extends({}, actionWrappers, {
+                                $done: function $done(x) {
+                                    return addToDispatchQueue("done", x);
+                                },
+                                $fail: function $fail(x) {
+                                    return addToDispatchQueue("fail", x);
+                                },
+                                $success: function $success(x) {
+                                    return addToDispatchQueue("success", x);
+                                },
+                                $state: store.getState,
+                                // provide get current value
+                                $current: function $current(def) {
+                                    var state = store.getState();
+                                    var current = (0, _ramda.view)(pathToLens(k), state);
+                                    if (typeof current === "undefined") return def;
+                                    return current;
+                                }
+                            }));
                         }
                     } catch (ex) {
                         actionWrapper.fail = true;
@@ -269,18 +316,18 @@ function create() {
 
                         // handle async action call
                         actionResult.then(function (asyncResult) {
-                            var _dispatch3;
+                            var _trigger;
 
                             //console.log('[success]');
                             actionWrapper.success = true;
                             actionWrapper.executing = false;
 
-                            _dispatch5((_dispatch3 = {
+                            trigger((_trigger = {
                                 type: actionPath
-                            }, _defineProperty(_dispatch3, actionKey, k), _defineProperty(_dispatch3, 'payload', asyncResult), _dispatch3));
+                            }, _defineProperty(_trigger, actionKey, k), _defineProperty(_trigger, "payload", asyncResult), _trigger), "success", "done");
 
                             // make sure state changed if payload is undefined
-                            if (typeof payload === 'undefined') {
+                            if (typeof payload === "undefined") {
                                 dispatchStatus();
                             }
                         }, function (ex) {
@@ -290,16 +337,17 @@ function create() {
                             actionWrapper.fail = true;
                             actionWrapper.error = ex;
                             dispatchStatus();
+                            trigger(null, "fail", "done");
                         });
                     } else {
-                        var _dispatch4;
+                        var _trigger2;
 
                         actionWrapper.success = true;
 
                         // handle sync action call
-                        _dispatch5((_dispatch4 = {
+                        trigger((_trigger2 = {
                             type: actionPath
-                        }, _defineProperty(_dispatch4, actionKey, k), _defineProperty(_dispatch4, 'payload', actionResult), _dispatch4));
+                        }, _defineProperty(_trigger2, actionKey, k), _defineProperty(_trigger2, "payload", actionResult), _trigger2), "done");
                     }
 
                     return actionResult;
@@ -336,9 +384,9 @@ function create() {
             );
         },
         autoSave: function autoSave() {
-            var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { key: 'appState' };
+            var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { key: "appState" };
 
-            if (typeof options === 'string') {
+            if (typeof options === "string") {
                 options = { key: options };
             }
 
@@ -355,12 +403,12 @@ function create() {
          * connect(mapper, [argsSelector, prefetch], component)
          */
         connect: function connect() {
-            for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-                args[_key2] = arguments[_key2];
+            for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+                args[_key3] = arguments[_key3];
             }
 
             if (args.length < 1) {
-                throw new Error('Argument count mismatch');
+                throw new Error("Argument count mismatch");
             }
             var mapper = void 0,
                 prefetch = void 0,
@@ -401,27 +449,27 @@ function create() {
                             if (result.then) {
                                 // init fetching status
                                 result.isFetchResult = true;
-                                result.status = 'loading';
+                                result.status = "loading";
                                 result.loading = true;
 
                                 // handle async fetching
                                 result.then(function (x) {
                                     result.success = true;
                                     result.loading = false;
-                                    result.status = 'success';
+                                    result.status = "success";
                                     result.payload = x;
                                     dummyDispatch();
                                 }, function (x) {
                                     result.fail = true;
                                     result.loading = false;
-                                    result.status = 'fail';
+                                    result.status = "fail";
                                     result.payload = x;
                                     dummyDispatch();
                                 });
                             } else {
                                 result = {
                                     isFetchResult: true,
-                                    status: 'success',
+                                    status: "success",
                                     success: true,
                                     payload: result
                                 };
@@ -431,7 +479,7 @@ function create() {
                         }
                     } else {
                         result = {
-                            status: 'success',
+                            status: "success",
                             success: true,
                             payload: result
                         };
@@ -452,12 +500,17 @@ function create() {
                 }
                 return props;
             });
-            return (0, _reactRedux.connect)(function (state) {
+            var connection = (0, _reactRedux.connect)(function (state) {
                 return { state: state };
             }, null, function (_ref, dispatchProps, ownProps) {
                 var state = _ref.state;
                 return reselect(mapper(state, actionWrappers, ownProps)) || ownProps;
             });
+
+            // add shortcut 'to'
+            connection.to = connection;
+
+            return connection;
         },
 
         /**
@@ -485,7 +538,7 @@ function create() {
          * dispatch custom action
          */
         dispatch: function dispatch() {
-            _dispatch5.apply(undefined, arguments);
+            _dispatch3.apply(undefined, arguments);
             return app;
         },
 
@@ -495,8 +548,8 @@ function create() {
          */
         subscribe: function subscribe(subscriber) {
             return store.subscribe(function () {
-                for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
-                    args[_key3] = arguments[_key3];
+                for (var _len4 = arguments.length, args = Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+                    args[_key4] = arguments[_key4];
                 }
 
                 return subscriber.apply(undefined, [store.getState()].concat(args));
@@ -532,8 +585,8 @@ function create() {
             //console.log('[test]', actionPath);
             var action = (0, _ramda.view)(pathToLens(actionPath), actionWrappers);
 
-            for (var _len4 = arguments.length, args = Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
-                args[_key4 - 1] = arguments[_key4];
+            for (var _len5 = arguments.length, args = Array(_len5 > 1 ? _len5 - 1 : 0), _key5 = 1; _key5 < _len5; _key5++) {
+                args[_key5 - 1] = arguments[_key5];
             }
 
             return action.apply(undefined, _toConsumableArray(args));

@@ -1,8 +1,17 @@
-import React from 'react';
-import {connect, Provider} from 'react-redux';
-import {createStore, combineReducers} from 'redux';
-import {createSelector} from 'reselect';
-import {forEachObjIndexed as each, set, view, lensPath, equals, map, identity} from 'ramda';
+import React from "react";
+import {connect, Provider} from "react-redux";
+import {createStore, combineReducers} from "redux";
+import {createSelector} from "reselect";
+import {
+    forEachObjIndexed as each,
+    set,
+    view,
+    lensPath,
+    equals,
+    map,
+    identity,
+    contains
+} from "ramda";
 
 const noop = () => {
 };
@@ -33,13 +42,13 @@ function createCancellablePromise(promise) {
     let ct;
 
     const cancellablePromise = promise.then(
-        (result) => {
+        result => {
             if (ct) {
                 return Promise.reject(ct);
             }
             return result;
         },
-        (reason) => {
+        reason => {
             return ct || reason;
         }
     );
@@ -78,17 +87,18 @@ export function create(initialState = {}, defState = {}) {
                 return;
             }
         }
-        autoSaveSubscription = store.subscribe(debounce(autoSave, storageOptions.debounce || 200));
+        autoSaveSubscription = store.subscribe(
+            debounce(autoSave, storageOptions.debounce || 200)
+        );
     }
 
-    if (typeof initialState === 'string') {
+    if (typeof initialState === "string") {
         storageOptions = {key: initialState};
 
         const serializedAppData = localStorage.getItem(storageOptions.key);
         if (serializedAppData) {
             initialState = JSON.parse(serializedAppData) || defState;
-        }
-        else {
+        } else {
             initialState = defState;
         }
     }
@@ -99,7 +109,7 @@ export function create(initialState = {}, defState = {}) {
         if (key) {
             // is merge action, merge state and payload
             // need to improve this logic, avoid update call if state is not changed
-            if (key === '@') {
+            if (key === "@") {
                 // extract properties to compare
                 const stateToCompare = map((v, k) => state[k], payload);
                 if (equals(stateToCompare, payload)) {
@@ -108,7 +118,7 @@ export function create(initialState = {}, defState = {}) {
 
                 return {
                     ...state,
-                    ...payload,
+                    ...payload
                 };
             }
 
@@ -130,7 +140,6 @@ export function create(initialState = {}, defState = {}) {
 
     subscribeAutoSave();
 
-
     function dispatch(action) {
         //console.log('[dispatch]', action);
         store.dispatch(action);
@@ -142,51 +151,62 @@ export function create(initialState = {}, defState = {}) {
          */
         $(changes = {}) {
             dispatch({
-                type: 'merge',
-                [actionKey]: '@',
-                payload: changes,
+                type: "merge",
+                [actionKey]: "@",
+                payload: changes
             });
-        },
+        }
     };
 
     let customReducer = null;
 
     function dummyDispatch() {
         dispatch({
-            type: '@dummy',
-            [actionKey]: '__dummy__',
-            payload: Math.random() * new Date().getTime(),
+            type: "@dummy",
+            [actionKey]: "__dummy__",
+            payload: Math.random() * new Date().getTime()
         });
     }
 
     function registerActions(parentKey, model) {
         each((x, k) => {
             const originalKey = k;
+            const originalKeyParts = originalKey.split(":");
+            let originalActionName;
             let options = {};
+
+            // supports named actionName:stateProp
+            if (originalKeyParts.length > 1) {
+                k = originalKeyParts[1];
+                originalActionName = originalKeyParts[0];
+            }
+
             if (parentKey) {
-                k = parentKey + '.' + k;
+                k = parentKey + "." + k;
             }
 
             // action setting can be Function or Array
             // prop: Function
             // prop: [actionName, Function]
             if (x instanceof Function || x instanceof Array) {
-                let name = x.name || originalKey;
+                // try to get action name
+                let actionName = originalActionName || x.name || originalKey;
 
                 if (x instanceof Array) {
                     options = x[1] || options;
-                    if (typeof options === 'string') {
+                    if (typeof options === "string") {
                         options = {name: options};
                     }
-                    name = options.name || name;
+                    actionName = options.name || actionName;
 
                     x = x[0];
                 }
 
-                const actionPath = (parentKey ? parentKey + '.' : '') + name;
+                const actionPath = (parentKey ? parentKey + "." : "") + actionName;
                 // create action wrapper
                 const actionWrapper = (...args) => {
                     const currentOptions = actionWrapper.options || options;
+                    const dispatchQueue = [];
                     delete actionWrapper.options;
 
                     if (currentOptions.dispatchStatus) {
@@ -194,13 +214,33 @@ export function create(initialState = {}, defState = {}) {
                     }
 
                     // cancel prev executing
-                    if (currentOptions.single && actionWrapper.lastResult && actionWrapper.lastResult.cancel) {
+                    if (
+                        currentOptions.single &&
+                        actionWrapper.lastResult &&
+                        actionWrapper.lastResult.cancel
+                    ) {
                         actionWrapper.lastResult.cancel();
                     }
 
                     delete actionWrapper.lastResult;
 
-                    const dispatchStatus = !currentOptions.dispatchStatus ? noop : dummyDispatch;
+                    function addToDispatchQueue(type, callback) {
+                        dispatchQueue.push({type, callback});
+                    }
+
+                    function trigger(dispatchData, ...types) {
+                        dispatchData && dispatch(dispatchData);
+
+                        dispatchQueue.forEach(i => {
+                            if (contains(i.type, types)) {
+                                i.callback();
+                            }
+                        });
+                    }
+
+                    const dispatchStatus = !currentOptions.dispatchStatus
+                        ? noop
+                        : dummyDispatch;
 
                     let actionResult;
                     delete actionWrapper.error;
@@ -213,7 +253,20 @@ export function create(initialState = {}, defState = {}) {
 
                         // is lazy call, (...args) => (getState, actions) => actionBody
                         if (actionResult instanceof Function) {
-                            actionResult = actionResult(store.getState, actionWrappers);
+                            actionResult = actionResult({
+                                ...actionWrappers,
+                                $done: x => addToDispatchQueue("done", x),
+                                $fail: x => addToDispatchQueue("fail", x),
+                                $success: x => addToDispatchQueue("success", x),
+                                $state: store.getState,
+                                // provide get current value
+                                $current: def => {
+                                    const state = store.getState();
+                                    const current = view(pathToLens(k), state);
+                                    if (typeof current === "undefined") return def;
+                                    return current;
+                                }
+                            });
                         }
                     } catch (ex) {
                         actionWrapper.fail = true;
@@ -227,46 +280,56 @@ export function create(initialState = {}, defState = {}) {
                     if (actionResult && actionResult.then) {
                         actionWrapper.executing = true;
 
-                        actionWrapper.lastResult = actionResult = createCancellablePromise(actionResult);
+                        actionWrapper.lastResult = actionResult = createCancellablePromise(
+                            actionResult
+                        );
 
                         dispatchStatus();
 
                         // handle async action call
                         actionResult.then(
-                            (asyncResult) => {
+                            asyncResult => {
                                 //console.log('[success]');
                                 actionWrapper.success = true;
                                 actionWrapper.executing = false;
 
-                                dispatch({
-                                    type: actionPath,
-                                    [actionKey]: k,
-                                    payload: asyncResult,
-                                });
+                                trigger(
+                                    {
+                                        type: actionPath,
+                                        [actionKey]: k,
+                                        payload: asyncResult
+                                    },
+                                    "success",
+                                    "done"
+                                );
 
                                 // make sure state changed if payload is undefined
-                                if (typeof payload === 'undefined') {
+                                if (typeof payload === "undefined") {
                                     dispatchStatus();
                                 }
                             },
-                            (ex) => {
+                            ex => {
                                 if (ex === cancellationToken) return;
                                 //console.log('[fail]');
                                 actionWrapper.executing = false;
                                 actionWrapper.fail = true;
                                 actionWrapper.error = ex;
                                 dispatchStatus();
+                                trigger(null, "fail", "done");
                             }
                         );
                     } else {
                         actionWrapper.success = true;
 
                         // handle sync action call
-                        dispatch({
-                            type: actionPath,
-                            [actionKey]: k,
-                            payload: actionResult,
-                        });
+                        trigger(
+                            {
+                                type: actionPath,
+                                [actionKey]: k,
+                                payload: actionResult
+                            },
+                            "done"
+                        );
                     }
 
                     return actionResult;
@@ -276,27 +339,30 @@ export function create(initialState = {}, defState = {}) {
                     success: undefined,
                     fail: undefined,
                     executing: false,
-                    with: (options) => (...args) => {
+                    with: options => (...args) => {
                         actionWrapper.options = options;
                         return actionWrapper(...args);
-                    },
+                    }
                 });
 
-                actionWrappers = set(pathToLens(actionPath), actionWrapper, actionWrappers);
+                actionWrappers = set(
+                    pathToLens(actionPath),
+                    actionWrapper,
+                    actionWrappers
+                );
             } else {
                 registerActions(k, x);
             }
         }, model);
     }
 
-
     const app = {
         /**
          * create provider
          */
-        Provider: (props) => <Provider store={store}>{props.children}</Provider>,
-        autoSave(options = { key: 'appState' }) {
-            if (typeof options === 'string') {
+        Provider: props => <Provider store={store}>{props.children}</Provider>,
+        autoSave(options = {key: "appState"}) {
+            if (typeof options === "string") {
                 options = {key: options};
             }
 
@@ -313,7 +379,7 @@ export function create(initialState = {}, defState = {}) {
          */
         connect(...args) {
             if (args.length < 1) {
-                throw new Error('Argument count mismatch');
+                throw new Error("Argument count mismatch");
             }
             let mapper, prefetch, prefetchArgsSelector;
             if (args.length === 1) {
@@ -334,31 +400,33 @@ export function create(initialState = {}, defState = {}) {
             }
 
             // create selector to memoize props
-            const reselect = createSelector(identity, (props) => {
+            const reselect = createSelector(identity, props => {
                 if (prefetch) {
-                    let result = prefetchArgsSelector ? prefetch(prefetchArgsSelector(props)) : prefetch();
+                    let result = prefetchArgsSelector
+                        ? prefetch(prefetchArgsSelector(props))
+                        : prefetch();
 
                     if (result) {
                         if (!result.isFetchResult) {
                             if (result.then) {
                                 // init fetching status
                                 result.isFetchResult = true;
-                                result.status = 'loading';
+                                result.status = "loading";
                                 result.loading = true;
 
                                 // handle async fetching
                                 result.then(
-                                    (x) => {
+                                    x => {
                                         result.success = true;
                                         result.loading = false;
-                                        result.status = 'success';
+                                        result.status = "success";
                                         result.payload = x;
                                         dummyDispatch();
                                     },
-                                    (x) => {
+                                    x => {
                                         result.fail = true;
                                         result.loading = false;
-                                        result.status = 'fail';
+                                        result.status = "fail";
                                         result.payload = x;
                                         dummyDispatch();
                                     }
@@ -366,9 +434,9 @@ export function create(initialState = {}, defState = {}) {
                             } else {
                                 result = {
                                     isFetchResult: true,
-                                    status: 'success',
+                                    status: "success",
                                     success: true,
-                                    payload: result,
+                                    payload: result
                                 };
                             }
                         } else {
@@ -376,9 +444,9 @@ export function create(initialState = {}, defState = {}) {
                         }
                     } else {
                         result = {
-                            status: 'success',
+                            status: "success",
                             success: true,
-                            payload: result,
+                            payload: result
                         };
                     }
 
@@ -397,11 +465,17 @@ export function create(initialState = {}, defState = {}) {
                 }
                 return props;
             });
-            return connect(
-                (state) => ({state}),
+            const connection = connect(
+                state => ({state}),
                 null,
-                ({state}, dispatchProps, ownProps) => reselect(mapper(state, actionWrappers, ownProps)) || ownProps
+                ({state}, dispatchProps, ownProps) =>
+                    reselect(mapper(state, actionWrappers, ownProps)) || ownProps
             );
+
+            // add shortcut 'to'
+            connection.to = connection;
+
+            return connection;
         },
         /**
          * register single action
@@ -419,7 +493,8 @@ export function create(initialState = {}, defState = {}) {
          * add custom reducers. This is helpful for 3rd lib which need reducer (Router, Log...)
          */
         reducer(value) {
-            customReducer = value instanceof Function ? value : combineReducers(value);
+            customReducer =
+                value instanceof Function ? value : combineReducers(value);
             return app;
         },
         /**
@@ -434,7 +509,9 @@ export function create(initialState = {}, defState = {}) {
          *
          */
         subscribe(subscriber) {
-            return store.subscribe((...args) => subscriber(store.getState(), ...args));
+            return store.subscribe((...args) =>
+                subscriber(store.getState(), ...args)
+            );
         },
         /**
          * register multiple actions
@@ -462,7 +539,7 @@ export function create(initialState = {}, defState = {}) {
             //console.log('[test]', actionPath);
             const action = view(pathToLens(actionPath), actionWrappers);
             return action(...args);
-        },
+        }
     };
 
     return app;

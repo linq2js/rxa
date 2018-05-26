@@ -46,7 +46,7 @@ render(
   <app.Provider>
     <HelloButton />
   </app.Provider>,
-  document.body
+  document.getElementById("root") || document.body
 );
 
 ```
@@ -61,9 +61,8 @@ import { create } from "rxa";
 
 // create app with intial state
 const app = create({ user: "linq2js" }).action(
-  "user", // state prop
-  x => x.toLowerCase(),
-  "updateUser" // action name
+  "updateUser:user", // state prop
+  x => x.toLowerCase()
 );
 
 const userInfoConnect = app.connect(
@@ -125,11 +124,13 @@ import { create } from "rxa";
 // create app with intial state
 const app = create("appState", { counter: 0 })
   // register hello action
-  .action("counter", () => getState => getState().counter + 1, "updateCounter");
+  .action("updateCounter:counter", () => ({ $current }) =>
+    $current() + 1
+  );
 
 // create connection
 const counterConnect = app.connect(
-  // properties mapper, it receives 3 arguments state, actions, ownProps
+  // properties mapper, it retrieves 3 arguments state, actions, ownProps
   ({ counter }, { updateCounter }) => ({
     counter,
     updateCounter
@@ -146,6 +147,7 @@ render(
   </app.Provider>,
   document.getElementById("root") || document.body
 );
+
 
 ```
 

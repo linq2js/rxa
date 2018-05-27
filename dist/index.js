@@ -165,7 +165,7 @@ function create() {
 
     subscribeAutoSave();
 
-    function _dispatch3(action) {
+    function _dispatch5(action) {
         //console.log('[dispatch]', action);
         store.dispatch(action);
     }
@@ -179,7 +179,7 @@ function create() {
 
             var changes = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-            _dispatch3((_dispatch = {
+            _dispatch5((_dispatch = {
                 type: "merge"
             }, _defineProperty(_dispatch, actionKey, "@"), _defineProperty(_dispatch, "payload", changes), _dispatch));
         }
@@ -190,7 +190,7 @@ function create() {
     function dummyDispatch() {
         var _dispatch2;
 
-        _dispatch3((_dispatch2 = {
+        _dispatch5((_dispatch2 = {
             type: "@dummy"
         }, _defineProperty(_dispatch2, actionKey, "__dummy__"), _defineProperty(_dispatch2, "payload", Math.random() * new Date().getTime()), _dispatch2));
     }
@@ -256,7 +256,7 @@ function create() {
                             types[_key2 - 1] = arguments[_key2];
                         }
 
-                        dispatchData && _dispatch3(dispatchData);
+                        dispatchData && _dispatch5(dispatchData);
 
                         dispatchQueue.forEach(function (i) {
                             if ((0, _ramda.contains)(i.type, types)) {
@@ -279,6 +279,15 @@ function create() {
                         // is lazy call, (...args) => (getState, actions) => actionBody
                         if (actionResult instanceof Function) {
                             actionResult = actionResult(_extends({}, actionWrappers, {
+                                $async: function $async(promise) {
+                                    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+                                    if (promise && !thenable.then) {
+                                        promise.__asyncOptions = options;
+                                    }
+                                    return promise;
+                                },
+
                                 $done: function $done(x) {
                                     return addToDispatchQueue("done", x);
                                 },
@@ -308,9 +317,19 @@ function create() {
 
                     // is then-able object
                     if (actionResult && actionResult.then) {
+                        var asyncOptions = actionResult.__asyncOptions;
+
                         actionWrapper.executing = true;
 
                         actionWrapper.lastResult = actionResult = createCancellablePromise(actionResult);
+
+                        if (asyncOptions && 'loading' in asyncOptions) {
+                            var _dispatch3;
+
+                            _dispatch5((_dispatch3 = {
+                                type: actionPath
+                            }, _defineProperty(_dispatch3, actionKey, k), _defineProperty(_dispatch3, "payload", asyncOptions.loading), _dispatch3));
+                        }
 
                         dispatchStatus();
 
@@ -336,6 +355,15 @@ function create() {
                             actionWrapper.executing = false;
                             actionWrapper.fail = true;
                             actionWrapper.error = ex;
+
+                            if (asyncOptions && 'fail' in asyncOptions) {
+                                var _dispatch4;
+
+                                _dispatch5((_dispatch4 = {
+                                    type: actionPath
+                                }, _defineProperty(_dispatch4, actionKey, k), _defineProperty(_dispatch4, "payload", asyncOptions.fail), _dispatch4));
+                            }
+
                             dispatchStatus();
                             trigger(null, "fail", "done");
                         });
@@ -538,7 +566,7 @@ function create() {
          * dispatch custom action
          */
         dispatch: function dispatch() {
-            _dispatch3.apply(undefined, arguments);
+            _dispatch5.apply(undefined, arguments);
             return app;
         },
 

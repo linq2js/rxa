@@ -16,6 +16,7 @@ It supports developer to build React app faster.
 1. <a href="#prefetchable-component">Prefetchable component</a>
 1. <a href="#auto-loadsave-app-state">Auto load/save app state</a>
 1. <a href="https://codesandbox.io/s/74l5kzxyx0">Todo list</a>
+1. <a href="https://codesandbox.io/s/8klzr8q558">$async usage</a>
 
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>
@@ -199,7 +200,7 @@ Instead of returning a partial state object directly, an action can return a fun
 ```js
 
 app.action('test', () => ( actions ) => {
-   const { $state, $current, $done, $fail, $success } = actions;
+   const { $state, $current, $done, $fail, $success, $async } = actions;
    
    $state(); // get current state
    $current(); // get current state prop value
@@ -209,6 +210,8 @@ app.action('test', () => ( actions ) => {
    
    return fetch(url);
 });
+
+For $async magic action, see <a href="https://codesandbox.io/s/8klzr8q558">$async usage</a>
 
 ```
 

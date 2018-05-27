@@ -255,6 +255,12 @@ export function create(initialState = {}, defState = {}) {
                         if (actionResult instanceof Function) {
                             actionResult = actionResult({
                                 ...actionWrappers,
+                                $async(promise, options = {}) {
+                                    if (promise && !thenable.then) {
+                                        promise.__asyncOptions = options;
+                                    }
+                                    return promise;
+                                },
                                 $done: x => addToDispatchQueue("done", x),
                                 $fail: x => addToDispatchQueue("fail", x),
                                 $success: x => addToDispatchQueue("success", x),
@@ -278,11 +284,23 @@ export function create(initialState = {}, defState = {}) {
 
                     // is then-able object
                     if (actionResult && actionResult.then) {
+                        const asyncOptions = actionResult.__asyncOptions;
+
                         actionWrapper.executing = true;
 
                         actionWrapper.lastResult = actionResult = createCancellablePromise(
                             actionResult
                         );
+
+
+                        if (asyncOptions && 'loading' in asyncOptions) {
+                            dispatch({
+                                type: actionPath,
+                                [actionKey]: k,
+                                payload: asyncOptions.loading
+                            })
+                        }
+
 
                         dispatchStatus();
 
@@ -314,6 +332,15 @@ export function create(initialState = {}, defState = {}) {
                                 actionWrapper.executing = false;
                                 actionWrapper.fail = true;
                                 actionWrapper.error = ex;
+
+                                if (asyncOptions && 'fail' in asyncOptions) {
+                                    dispatch({
+                                        type: actionPath,
+                                        [actionKey]: k,
+                                        payload: asyncOptions.fail
+                                    })
+                                }
+
                                 dispatchStatus();
                                 trigger(null, "fail", "done");
                             }

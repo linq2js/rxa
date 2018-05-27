@@ -26,7 +26,7 @@ function debounce(f, delay = 0) {
 }
 
 function parsePath(path) {
-    return path.split(/[.[\]]/);
+    return path.toString().split(/[.[\]]/);
 }
 
 /**
@@ -374,17 +374,11 @@ export function create(initialState = {}, defState = {}) {
 
                 const actionLens = pathToLens(actionPath);
 
-                actionWrappers = set(
-                    actionLens,
-                    actionWrapper,
-                    actionWrappers
-                );
+                actionWrappers = set(actionLens, actionWrapper, actionWrappers);
 
                 if (!view(actionLens, app)) {
-                    Object.assign(app, actionWrappers)
+                    Object.assign(app, actionWrappers);
                 }
-
-
             } else {
                 registerActions(k, x);
             }
@@ -578,4 +572,287 @@ export function create(initialState = {}, defState = {}) {
     };
 
     return app;
+}
+
+export function form({
+                         onChange: formChange = noop,
+                         onSubmit: formSubmit = noop,
+                         ...formMeta
+                     } = {},
+                     data,
+                     formRender) {
+    let {fields = {}} = formMeta;
+    const getFormMeta = () => ({...formMeta, fields});
+
+    function validate(data, meta) {
+        let validatingFieldCount = 0;
+        let hasFieldError = false;
+        let validationCancelled = false;
+
+        meta.validating = false;
+        meta.invalid = false;
+        meta.valid = true;
+
+        if (meta.cancelValidation) {
+            meta.cancelValidation();
+        }
+
+        meta.cancelValidation = function () {
+            validationCancelled = true;
+        };
+
+        // clear field validation
+        each(f => {
+            delete f.error;
+            f.validating = false;
+        }, meta.fields);
+
+        if (meta.onValidate) {
+            meta.onValidate({
+                data,
+                meta,
+                validate(field, error) {
+                    if (error) {
+                        const fieldMeta = view(pathToLens(field), meta.fields);
+                        if (error.then) {
+                            validatingFieldCount++;
+
+                            function done(e) {
+                                validatingFieldCount--;
+                                fieldMeta.validating = false;
+
+                                if (e) {
+                                    hasFieldError = true;
+                                    fieldMeta.error = e;
+                                }
+
+                                // is the last validation
+                                if (!validatingFieldCount) {
+                                    meta.validating = false;
+
+                                    if (hasFieldError) {
+                                        meta.invalid = true;
+                                        meta.valid = false;
+                                    }
+
+                                    if (!validationCancelled) {
+                                        formChange(data, meta, "meta");
+                                    }
+                                }
+                            }
+
+                            error.then(done, done);
+                        } else {
+                            fieldMeta.error = error;
+                            hasFieldError = true;
+                        }
+                    }
+                }
+            });
+        }
+
+        if (validatingFieldCount) {
+            meta.validating = true;
+        }
+
+        if (hasFieldError) {
+            meta.invalid = true;
+            meta.valid = false;
+        }
+    }
+
+    function formChangeWrapper(data, meta, changeType) {
+        if (changeType === "value" && !meta.validateOnSubmit) {
+            validate(data, meta);
+        }
+
+        formChange(data, meta, changeType);
+    }
+
+    function formSubmitWrapper(data, meta) {
+        if (meta.validateOnSubmit) {
+            validate(data, meta);
+        }
+        formSubmit(data, meta);
+    }
+
+    return formRender({
+        props: {
+            onSubmit(e) {
+                if (e && e.preventDefault) {
+                    e.preventDefault();
+                }
+                formSubmitWrapper(data, getFormMeta());
+            }
+        },
+
+        fieldArray(fieldName, method, ...args) {
+            const fieldLens = pathToLens(fieldName);
+            let value = view(fieldLens, data);
+
+            let fieldMeta = view(fieldLens, fields);
+            if (!fieldMeta) {
+                fields = set(fieldLens, (fieldMeta = {}), fields);
+            }
+
+            if (!(value instanceof Array)) {
+                value = value === null || value === undefined ? [] : [value];
+                if (!method) return value;
+            } else {
+                if (!method) return value;
+                value = [...value];
+            }
+
+            if (!fieldMeta.items) {
+                // create item meta
+                fieldMeta.items = value.map(() => ({}));
+            }
+
+            // is render
+            if (method instanceof Function) {
+                return value.map((item, index) => {
+                    function onMetaChange(subMeta) {
+                        fieldMeta.items[index] = subMeta;
+                        formChangeWrapper(data, getFormMeta(), "meta");
+                    }
+
+                    function onValueChange(subValue) {
+                        const copyOfValue = [...value];
+                        copyOfValue[index] = subValue;
+                        data = set(fieldLens, copyOfValue, data);
+                        fieldMeta.dirty = true;
+                        formMeta.dirty = true;
+                        formChangeWrapper(data, getFormMeta(), "value");
+                    }
+
+                    return renderField({
+                        name: index,
+                        data: value,
+                        render: method,
+                        onMetaChange,
+                        onValueChange,
+                        meta: {
+                            ...fieldMeta.items[index],
+                            // sub form method
+                            onSubmit(subData, subMeta) {
+                                // do nothing
+                            },
+                            onChange(subData, subMeta, changeType) {
+                                if (changeType === "meta") {
+                                    onMetaChange(subMeta);
+                                } else if (changeType === "value") {
+                                    onValueChange(subData);
+                                }
+                            }
+                        }
+                    });
+                });
+            } else {
+                // support custom methods
+                switch (method) {
+                    case "removeAt":
+                        value.splice(args[0], 1);
+                        fieldMeta.items.splice(args[0]);
+                        break;
+                    case "remove":
+                        const indexesToRemove = [];
+                        value = value.filter((x, i) => {
+                            if (x === args[0]) {
+                                indexesToRemove.push(i);
+                                return false;
+                            }
+                            return true;
+                        });
+                        // remove metadata
+                        while (indexesToRemove.length) {
+                            fieldMeta.items.splice(indexesToRemove.pop(), 1);
+                        }
+                        break;
+                    case "shift":
+                        fieldMeta.items.shift();
+                        value.shift();
+                        break;
+                    case "pop":
+                        fieldMeta.items.pop();
+                        value.pop();
+                        break;
+                    case "unshift":
+                        fieldMeta.items.unshift(...args.map(() => ({})));
+                        value.unshift(...args);
+                        break;
+                    case "push":
+                        fieldMeta.items.push(...args.map(() => ({})));
+                        value.push(...args);
+                        break;
+                    default:
+                        // call default method
+                        value[method](...args);
+                        break;
+                }
+
+                data = set(fieldLens, value, data);
+                formChange(data, getFormMeta(), "value");
+            }
+        },
+
+        field: function field(fieldName, fieldRender) {
+            const fieldLens = pathToLens(fieldName);
+            const fieldView = view(fieldLens);
+            let fieldMeta = fieldView(fields);
+            if (!fieldMeta) {
+                fields = set(fieldLens, (fieldMeta = {}), fields);
+            }
+
+            return renderField({
+                name: fieldName,
+                meta: fieldMeta,
+                data: data,
+                render: fieldRender,
+                onMetaChange() {
+                    formChangeWrapper(data, getFormMeta(), "meta");
+                },
+                onValueChange(value) {
+                    data = set(fieldLens, value, data);
+                    fieldMeta.dirty = true;
+                    formMeta.dirty = true;
+                    formChangeWrapper(data, getFormMeta(), "value");
+                }
+            });
+        }
+    });
+}
+
+function renderField({
+                         name,
+                         meta,
+                         data,
+                         render,
+                         onMetaChange,
+                         onValueChange
+                     }) {
+    const fieldView = view(pathToLens(name));
+    const fieldValue = fieldView(data);
+    return render({
+        name,
+        props: {
+            onFocus() {
+                meta.touched = true;
+                meta.focus = true;
+                onMetaChange(meta);
+            },
+            onChange(e) {
+                const value =
+                    e && e.stopPropagation instanceof Function ? e.target.value : e;
+
+                onValueChange(value);
+            },
+            onBlur() {
+                meta.focus = false;
+                onMetaChange(meta);
+            },
+            value: fieldValue
+        },
+        meta,
+        value: fieldValue
+    });
 }

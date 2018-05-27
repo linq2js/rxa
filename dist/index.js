@@ -9,6 +9,7 @@ var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = [
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 exports.create = create;
+exports.form = form;
 
 var _react = require("react");
 
@@ -23,6 +24,8 @@ var _reselect = require("reselect");
 var _ramda = require("ramda");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
@@ -47,7 +50,7 @@ function debounce(f) {
 }
 
 function parsePath(path) {
-    return path.split(/[.[\]]/);
+    return path.toString().split(/[.[\]]/);
 }
 
 /**
@@ -628,5 +631,307 @@ function create() {
     };
 
     return app;
+}
+
+function form() {
+    var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+        _ref2$onChange = _ref2.onChange,
+        formChange = _ref2$onChange === undefined ? noop : _ref2$onChange,
+        _ref2$onSubmit = _ref2.onSubmit,
+        formSubmit = _ref2$onSubmit === undefined ? noop : _ref2$onSubmit,
+        formMeta = _objectWithoutProperties(_ref2, ["onChange", "onSubmit"]);
+
+    var data = arguments[1];
+    var formRender = arguments[2];
+    var _formMeta$fields = formMeta.fields,
+        fields = _formMeta$fields === undefined ? {} : _formMeta$fields;
+
+    var getFormMeta = function getFormMeta() {
+        return _extends({}, formMeta, { fields: fields });
+    };
+
+    function validate(data, meta) {
+        var validatingFieldCount = 0;
+        var hasFieldError = false;
+        var validationCancelled = false;
+
+        meta.validating = false;
+        meta.invalid = false;
+        meta.valid = true;
+
+        if (meta.cancelValidation) {
+            meta.cancelValidation();
+        }
+
+        meta.cancelValidation = function () {
+            validationCancelled = true;
+        };
+
+        // clear field validation
+        (0, _ramda.forEachObjIndexed)(function (f) {
+            delete f.error;
+            f.validating = false;
+        }, meta.fields);
+
+        if (meta.onValidate) {
+            meta.onValidate({
+                data: data,
+                meta: meta,
+                validate: function validate(field, error) {
+                    if (error) {
+                        var fieldMeta = (0, _ramda.view)(pathToLens(field), meta.fields);
+                        if (error.then) {
+                            var done = function done(e) {
+                                validatingFieldCount--;
+                                fieldMeta.validating = false;
+
+                                if (e) {
+                                    hasFieldError = true;
+                                    fieldMeta.error = e;
+                                }
+
+                                // is the last validation
+                                if (!validatingFieldCount) {
+                                    meta.validating = false;
+
+                                    if (hasFieldError) {
+                                        meta.invalid = true;
+                                        meta.valid = false;
+                                    }
+
+                                    if (!validationCancelled) {
+                                        formChange(data, meta, "meta");
+                                    }
+                                }
+                            };
+
+                            validatingFieldCount++;
+
+                            error.then(done, done);
+                        } else {
+                            fieldMeta.error = error;
+                            hasFieldError = true;
+                        }
+                    }
+                }
+            });
+        }
+
+        if (validatingFieldCount) {
+            meta.validating = true;
+        }
+
+        if (hasFieldError) {
+            meta.invalid = true;
+            meta.valid = false;
+        }
+    }
+
+    function formChangeWrapper(data, meta, changeType) {
+        if (changeType === "value" && !meta.validateOnSubmit) {
+            validate(data, meta);
+        }
+
+        formChange(data, meta, changeType);
+    }
+
+    function formSubmitWrapper(data, meta) {
+        if (meta.validateOnSubmit) {
+            validate(data, meta);
+        }
+        formSubmit(data, meta);
+    }
+
+    return formRender({
+        props: {
+            onSubmit: function onSubmit(e) {
+                if (e && e.preventDefault) {
+                    e.preventDefault();
+                }
+                formSubmitWrapper(data, getFormMeta());
+            }
+        },
+
+        fieldArray: function fieldArray(fieldName, method) {
+            for (var _len6 = arguments.length, args = Array(_len6 > 2 ? _len6 - 2 : 0), _key6 = 2; _key6 < _len6; _key6++) {
+                args[_key6 - 2] = arguments[_key6];
+            }
+
+            var _fieldMeta$items, _value, _fieldMeta$items2, _value2, _value3;
+
+            var fieldLens = pathToLens(fieldName);
+            var value = (0, _ramda.view)(fieldLens, data);
+
+            var fieldMeta = (0, _ramda.view)(fieldLens, fields);
+            if (!fieldMeta) {
+                fields = (0, _ramda.set)(fieldLens, fieldMeta = {}, fields);
+            }
+
+            if (!(value instanceof Array)) {
+                value = value === null || value === undefined ? [] : [value];
+                if (!method) return value;
+            } else {
+                if (!method) return value;
+                value = [].concat(_toConsumableArray(value));
+            }
+
+            if (!fieldMeta.items) {
+                // create item meta
+                fieldMeta.items = value.map(function () {
+                    return {};
+                });
+            }
+
+            // is render
+            if (method instanceof Function) {
+                return value.map(function (item, index) {
+                    function onMetaChange(subMeta) {
+                        fieldMeta.items[index] = subMeta;
+                        formChangeWrapper(data, getFormMeta(), "meta");
+                    }
+
+                    function onValueChange(subValue) {
+                        var copyOfValue = [].concat(_toConsumableArray(value));
+                        copyOfValue[index] = subValue;
+                        data = (0, _ramda.set)(fieldLens, copyOfValue, data);
+                        fieldMeta.dirty = true;
+                        formMeta.dirty = true;
+                        formChangeWrapper(data, getFormMeta(), "value");
+                    }
+
+                    return renderField({
+                        name: index,
+                        data: value,
+                        render: method,
+                        onMetaChange: onMetaChange,
+                        onValueChange: onValueChange,
+                        meta: _extends({}, fieldMeta.items[index], {
+                            // sub form method
+                            onSubmit: function onSubmit(subData, subMeta) {
+                                // do nothing
+                            },
+                            onChange: function onChange(subData, subMeta, changeType) {
+                                if (changeType === "meta") {
+                                    onMetaChange(subMeta);
+                                } else if (changeType === "value") {
+                                    onValueChange(subData);
+                                }
+                            }
+                        })
+                    });
+                });
+            } else {
+                // support custom methods
+                switch (method) {
+                    case "removeAt":
+                        value.splice(args[0], 1);
+                        fieldMeta.items.splice(args[0]);
+                        break;
+                    case "remove":
+                        var indexesToRemove = [];
+                        value = value.filter(function (x, i) {
+                            if (x === args[0]) {
+                                indexesToRemove.push(i);
+                                return false;
+                            }
+                            return true;
+                        });
+                        // remove metadata
+                        while (indexesToRemove.length) {
+                            fieldMeta.items.splice(indexesToRemove.pop(), 1);
+                        }
+                        break;
+                    case "shift":
+                        fieldMeta.items.shift();
+                        value.shift();
+                        break;
+                    case "pop":
+                        fieldMeta.items.pop();
+                        value.pop();
+                        break;
+                    case "unshift":
+                        (_fieldMeta$items = fieldMeta.items).unshift.apply(_fieldMeta$items, _toConsumableArray(args.map(function () {
+                            return {};
+                        })));
+                        (_value = value).unshift.apply(_value, _toConsumableArray(args));
+                        break;
+                    case "push":
+                        (_fieldMeta$items2 = fieldMeta.items).push.apply(_fieldMeta$items2, _toConsumableArray(args.map(function () {
+                            return {};
+                        })));
+                        (_value2 = value).push.apply(_value2, _toConsumableArray(args));
+                        break;
+                    default:
+                        // call default method
+                        (_value3 = value)[method].apply(_value3, _toConsumableArray(args));
+                        break;
+                }
+
+                data = (0, _ramda.set)(fieldLens, value, data);
+                formChange(data, getFormMeta(), "value");
+            }
+        },
+
+
+        field: function field(fieldName, fieldRender) {
+            var fieldLens = pathToLens(fieldName);
+            var fieldView = (0, _ramda.view)(fieldLens);
+            var fieldMeta = fieldView(fields);
+            if (!fieldMeta) {
+                fields = (0, _ramda.set)(fieldLens, fieldMeta = {}, fields);
+            }
+
+            return renderField({
+                name: fieldName,
+                meta: fieldMeta,
+                data: data,
+                render: fieldRender,
+                onMetaChange: function onMetaChange() {
+                    formChangeWrapper(data, getFormMeta(), "meta");
+                },
+                onValueChange: function onValueChange(value) {
+                    data = (0, _ramda.set)(fieldLens, value, data);
+                    fieldMeta.dirty = true;
+                    formMeta.dirty = true;
+                    formChangeWrapper(data, getFormMeta(), "value");
+                }
+            });
+        }
+    });
+}
+
+function renderField(_ref3) {
+    var name = _ref3.name,
+        meta = _ref3.meta,
+        data = _ref3.data,
+        render = _ref3.render,
+        onMetaChange = _ref3.onMetaChange,
+        onValueChange = _ref3.onValueChange;
+
+    var fieldView = (0, _ramda.view)(pathToLens(name));
+    var fieldValue = fieldView(data);
+    return render({
+        name: name,
+        props: {
+            onFocus: function onFocus() {
+                meta.touched = true;
+                meta.focus = true;
+                onMetaChange(meta);
+            },
+            onChange: function onChange(e) {
+                var value = e && e.stopPropagation instanceof Function ? e.target.value : e;
+
+                onValueChange(value);
+            },
+            onBlur: function onBlur() {
+                meta.focus = false;
+                onMetaChange(meta);
+            },
+
+            value: fieldValue
+        },
+        meta: meta,
+        value: fieldValue
+    });
 }
 //# sourceMappingURL=index.js.map

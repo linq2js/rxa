@@ -17,6 +17,7 @@ It supports developer to build React app faster.
 1. <a href="#auto-loadsave-app-state">Auto load/save app state</a>
 1. <a href="https://codesandbox.io/s/74l5kzxyx0">Todo list</a>
 1. <a href="https://codesandbox.io/s/8klzr8q558">$async usage</a>
+1. <a href="https://codesandbox.io/s/ol7ylyqw5y">Free drawing component</a>
 
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>

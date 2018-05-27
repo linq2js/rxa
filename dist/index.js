@@ -393,7 +393,13 @@ function create() {
                     }
                 });
 
-                actionWrappers = (0, _ramda.set)(pathToLens(actionPath), actionWrapper, actionWrappers);
+                var actionLens = pathToLens(actionPath);
+
+                actionWrappers = (0, _ramda.set)(actionLens, actionWrapper, actionWrappers);
+
+                if (!(0, _ramda.view)(actionLens, app)) {
+                    Object.assign(app, actionWrappers);
+                }
             } else {
                 registerActions(k, x);
             }

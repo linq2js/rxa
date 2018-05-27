@@ -370,11 +370,19 @@ export function create(initialState = {}, defState = {}) {
                     }
                 });
 
+                const actionLens = pathToLens(actionPath);
+
                 actionWrappers = set(
-                    pathToLens(actionPath),
+                    actionLens,
                     actionWrapper,
                     actionWrappers
                 );
+
+                if (!view(actionLens, app)) {
+                    Object.assign(app, actionWrappers)
+                }
+
+
             } else {
                 registerActions(k, x);
             }

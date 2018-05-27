@@ -256,7 +256,7 @@ export function create(initialState = {}, defState = {}) {
                             actionResult = actionResult({
                                 ...actionWrappers,
                                 $async(promise, options = {}) {
-                                    if (promise && !thenable.then) {
+                                    if (promise && promise.then) {
                                         promise.__asyncOptions = options;
                                     }
                                     return promise;
@@ -292,15 +292,13 @@ export function create(initialState = {}, defState = {}) {
                             actionResult
                         );
 
-
-                        if (asyncOptions && 'loading' in asyncOptions) {
+                        if (asyncOptions && "loading" in asyncOptions) {
                             dispatch({
                                 type: actionPath,
                                 [actionKey]: k,
                                 payload: asyncOptions.loading
-                            })
+                            });
                         }
-
 
                         dispatchStatus();
 
@@ -333,12 +331,12 @@ export function create(initialState = {}, defState = {}) {
                                 actionWrapper.fail = true;
                                 actionWrapper.error = ex;
 
-                                if (asyncOptions && 'fail' in asyncOptions) {
+                                if (asyncOptions && "fail" in asyncOptions) {
                                     dispatch({
                                         type: actionPath,
                                         [actionKey]: k,
                                         payload: asyncOptions.fail
-                                    })
+                                    });
                                 }
 
                                 dispatchStatus();

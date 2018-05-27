@@ -282,7 +282,7 @@ function create() {
                                 $async: function $async(promise) {
                                     var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
-                                    if (promise && !thenable.then) {
+                                    if (promise && promise.then) {
                                         promise.__asyncOptions = options;
                                     }
                                     return promise;
@@ -323,7 +323,7 @@ function create() {
 
                         actionWrapper.lastResult = actionResult = createCancellablePromise(actionResult);
 
-                        if (asyncOptions && 'loading' in asyncOptions) {
+                        if (asyncOptions && "loading" in asyncOptions) {
                             var _dispatch3;
 
                             _dispatch5((_dispatch3 = {
@@ -356,7 +356,7 @@ function create() {
                             actionWrapper.fail = true;
                             actionWrapper.error = ex;
 
-                            if (asyncOptions && 'fail' in asyncOptions) {
+                            if (asyncOptions && "fail" in asyncOptions) {
                                 var _dispatch4;
 
                                 _dispatch5((_dispatch4 = {

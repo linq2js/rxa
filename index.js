@@ -147,14 +147,17 @@ export function create(initialState = {}, defState = {}) {
 
     let actionWrappers = {
         /**
-         * update state
+         * get/update state
          */
-        $(changes = {}) {
-            dispatch({
-                type: "merge",
-                [actionKey]: "@",
-                payload: changes
-            });
+        $state(changes) {
+            if (arguments.length < 1) return store.getState();
+            if (changes) {
+                dispatch({
+                    type: "merge",
+                    [actionKey]: "@",
+                    payload: changes
+                });
+            }
         }
     };
 
@@ -264,7 +267,6 @@ export function create(initialState = {}, defState = {}) {
                                 $done: x => addToDispatchQueue("done", x),
                                 $fail: x => addToDispatchQueue("fail", x),
                                 $success: x => addToDispatchQueue("success", x),
-                                $state: store.getState,
                                 // provide get current value
                                 $current: def => {
                                     const state = store.getState();

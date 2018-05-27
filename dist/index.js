@@ -172,16 +172,17 @@ function create() {
 
     var actionWrappers = {
         /**
-         * update state
+         * get/update state
          */
-        $: function $() {
-            var _dispatch;
+        $state: function $state(changes) {
+            if (arguments.length < 1) return store.getState();
+            if (changes) {
+                var _dispatch;
 
-            var changes = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-            _dispatch5((_dispatch = {
-                type: "merge"
-            }, _defineProperty(_dispatch, actionKey, "@"), _defineProperty(_dispatch, "payload", changes), _dispatch));
+                _dispatch5((_dispatch = {
+                    type: "merge"
+                }, _defineProperty(_dispatch, actionKey, "@"), _defineProperty(_dispatch, "payload", changes), _dispatch));
+            }
         }
     };
 
@@ -297,7 +298,6 @@ function create() {
                                 $success: function $success(x) {
                                     return addToDispatchQueue("success", x);
                                 },
-                                $state: store.getState,
                                 // provide get current value
                                 $current: function $current(def) {
                                     var state = store.getState();

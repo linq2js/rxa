@@ -867,7 +867,7 @@ export function validateForm({
                                 updateValidationStatus(true);
                             }
 
-                            error.then(done, done);
+                            error.then(() => done(), done);
                         } else {
                             fieldMeta[messageType] = error;
                             fieldValidationResolve(false);

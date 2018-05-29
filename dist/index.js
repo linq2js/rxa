@@ -921,7 +921,9 @@ function validateForm(_ref4) {
 
                             validatingFieldCount++;
 
-                            error.then(done, done);
+                            error.then(function () {
+                                return done();
+                            }, done);
                         } else {
                             fieldMeta[messageType] = error;
                             fieldValidationResolve(false);

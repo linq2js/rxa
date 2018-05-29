@@ -1,6 +1,6 @@
 {
   "name": "rxa",
-  "version": "1.0.31",
+  "version": "1.0.33",
   "description": "An lib to create an application which is based on React + Redux + Rxjs + Ramda + Reselect",
   "main": "./dist/index.js",
   "scripts": {

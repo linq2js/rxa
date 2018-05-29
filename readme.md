@@ -20,6 +20,7 @@ It supports developer to build React app faster.
 1. <a href="https://codesandbox.io/s/ol7ylyqw5y">Free drawing component</a>
 1. <a href="https://codesandbox.io/s/oj9kx80xrz">Dots game</a>
 1. <a href="https://codesandbox.io/s/y3l52mrvp9">Huge Form (200 inputs)</a>
+1. <a href="https://codesandbox.io/s/qk7jx80616">Form and react-select</a>
 
 ### Hello world
 <a href="https://codesandbox.io/s/43kn33ko0x">codesandbox.io</a>

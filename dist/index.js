@@ -736,7 +736,10 @@ function form() {
 
                     // meta getter/setter
                     meta: function meta(newMeta) {
-                        if (!arguments.length) return fieldMeta;
+                        if (!arguments.length) return fieldMeta || {};
+                        if (typeof newMeta === "string") {
+                            return (fieldMeta || {})[newMeta];
+                        }
                         updateMeta(newMeta, true);
                     }
                 };
@@ -799,10 +802,13 @@ function renderField(_ref3) {
     });
 }
 
-var FormWarning = function FormWarning(data) {
-    _classCallCheck(this, FormWarning);
+var FormMessage = function FormMessage(data) {
+    var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "error";
+
+    _classCallCheck(this, FormMessage);
 
     this.data = data;
+    this.type = type;
 };
 
 /**
@@ -838,6 +844,7 @@ function validateForm(_ref4) {
 
         // clear field validation
         forEachField(formMeta.fields, false, function (f) {
+            delete f.info;
             delete f.error;
             delete f.warning;
             f.validating = false;
@@ -865,11 +872,12 @@ function validateForm(_ref4) {
                 }
             });
 
-            if (tryToTriggerMetaChange && !validationCancelled && !formMeta.validating) {
-                formValidationResolve(formMeta);
-            } else if (tryToTriggerMetaChange) {
-                // update UI
-                onChange(formMeta, "meta");
+            if (tryToTriggerMetaChange && !validationCancelled) {
+                if (formMeta.validating) {
+                    onChange(_extends({}, formMeta), "meta");
+                } else {
+                    formValidationResolve(_extends({}, formMeta));
+                }
             }
         }
 
@@ -877,31 +885,36 @@ function validateForm(_ref4) {
             data: formData,
             meta: formMeta,
             warning: function warning(error) {
-                return new FormWarning(error);
+                return new FormMessage(error, "warning");
             },
-            validate: function validate(field, error, isWarning) {
+            info: function info(error) {
+                return new FormMessage(error, "info");
+            },
+            validate: function validate(field, error) {
+                var messageType = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "error";
+
                 return new Promise(function (fieldValidationResolve) {
                     if (error) {
                         // extract error from warning
-                        if (error instanceof FormWarning) {
-                            isWarning = true;
+                        if (error instanceof FormMessage) {
+                            messageType = error.type;
                             error = error.data;
                         }
 
                         var fieldMeta = field ? (0, _ramda.view)(pathToLens(field), formMeta.fields) : formMeta;
 
-                        console.log(fieldMeta, field, error);
+                        //console.log(fieldMeta, field, error);
 
                         if (error.then) {
                             var done = function done(asyncError) {
-                                if (asyncError instanceof FormWarning) {
-                                    isWarning = true;
+                                if (asyncError instanceof FormMessage) {
+                                    messageType = asyncError.type;
                                     asyncError = asyncError.data;
                                 }
 
                                 validatingFieldCount--;
                                 fieldMeta.validating = false;
-                                fieldMeta[isWarning ? "warning" : "error"] = asyncError;
+                                fieldMeta[messageType] = asyncError;
                                 fieldValidationResolve(!asyncError);
                                 updateValidationStatus(true);
                             };
@@ -910,7 +923,7 @@ function validateForm(_ref4) {
 
                             error.then(done, done);
                         } else {
-                            fieldMeta[isWarning ? "warning" : "error"] = error;
+                            fieldMeta[messageType] = error;
                             fieldValidationResolve(false);
                             updateValidationStatus();
                         }
@@ -929,7 +942,7 @@ function validateForm(_ref4) {
  * handle form submitting
  */
 function formSubmitWrapper(formData, _ref5) {
-    var _onChange = _ref5.onChange,
+    var onChange = _ref5.onChange,
         onSubmit = _ref5.onSubmit,
         onValidate = _ref5.onValidate,
         formMeta = _objectWithoutProperties(_ref5, ["onChange", "onSubmit", "onValidate"]);
@@ -937,16 +950,16 @@ function formSubmitWrapper(formData, _ref5) {
     if (!onSubmit) return;
 
     if (formData.validateOnSubmit) {
+        var handleMetaChange = function handleMetaChange(newMeta) {
+            onChange(formData, newMeta, "meta");
+        };
+
         validateForm({
             data: formData,
             meta: formMeta,
-            onChange: function onChange(newMeta) {
-                return _onChange(formData, newMeta, "meta");
-            },
+            onChange: handleMetaChange,
             onValidate: onValidate
-        }).then(function (newMeta) {
-            return onSubmit(formData, newMeta);
-        });
+        }).then(handleMetaChange);
     } else {
         onSubmit(formData, formMeta);
     }
@@ -956,23 +969,23 @@ function formSubmitWrapper(formData, _ref5) {
  * handle change and validation
  */
 function formChangeWrapper(initialData, formData, _ref6, changeType) {
-    var _onChange2 = _ref6.onChange,
+    var onChange = _ref6.onChange,
         onSubmit = _ref6.onSubmit,
         onValidate = _ref6.onValidate,
         formMeta = _objectWithoutProperties(_ref6, ["onChange", "onSubmit", "onValidate"]);
 
     if (changeType === "value") {
         if (!formMeta.validateOnSubmit) {
+            var handleMetaChange = function handleMetaChange(newMeta) {
+                onChange(formData, newMeta, "meta");
+            };
+
             validateForm({
                 data: formData,
                 meta: formMeta,
-                onChange: function onChange(newMeta) {
-                    return _onChange2(formData, newMeta, "meta");
-                },
+                onChange: handleMetaChange,
                 onValidate: onValidate
-            }).then(function (newMeta) {
-                return _onChange2(formData, newMeta, "meta");
-            });
+            }).then(handleMetaChange);
         }
 
         if (!formMeta.initialData) {
@@ -980,7 +993,7 @@ function formChangeWrapper(initialData, formData, _ref6, changeType) {
         }
     }
 
-    _onChange2(formData, formMeta, changeType);
+    onChange(formData, formMeta, changeType);
 }
 
 function forEachField(fields, deep, callback) {

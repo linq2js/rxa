@@ -1,7 +1,7 @@
 import React from "react";
-import {connect, Provider} from "react-redux";
-import {createStore, combineReducers} from "redux";
-import {createSelector} from "reselect";
+import { connect, Provider } from "react-redux";
+import { createStore, combineReducers } from "redux";
+import { createSelector } from "reselect";
 import {
     forEachObjIndexed,
     set,
@@ -18,8 +18,7 @@ import {
     sort
 } from "ramda";
 
-const noop = () => {
-};
+const noop = () => {};
 const cancellationToken = {};
 const fieldArrayMethods = "append prepend push pop shift unshift remove removeAt sort swap removeAll move".split(
     " "
@@ -27,7 +26,7 @@ const fieldArrayMethods = "append prepend push pop shift unshift remove removeAt
 
 function debounce(f, delay = 0) {
     let timerId;
-    return function (...args) {
+    return function(...args) {
         clearTimeout(timerId);
         timerId = setTimeout(f, delay, ...args);
     };
@@ -61,7 +60,7 @@ function createCancellablePromise(promise) {
         }
     );
 
-    cancellablePromise.cancel = function (value = cancellationToken) {
+    cancellablePromise.cancel = function(value = cancellationToken) {
         if (ct) return this;
         //console.log('cancelled');
         if (promise.abort) {
@@ -101,7 +100,7 @@ export function create(initialState = {}, defState = {}) {
     }
 
     if (typeof initialState === "string") {
-        storageOptions = {key: initialState};
+        storageOptions = { key: initialState };
 
         const serializedAppData = localStorage.getItem(storageOptions.key);
         if (serializedAppData) {
@@ -113,7 +112,7 @@ export function create(initialState = {}, defState = {}) {
 
     function defaultReducer(state = initialState, action) {
         // extract action info
-        const {[actionKey]: key, payload} = action;
+        const { [actionKey]: key, payload } = action;
         if (key) {
             // is merge action, merge state and payload
             // need to improve this logic, avoid update call if state is not changed
@@ -206,7 +205,7 @@ export function create(initialState = {}, defState = {}) {
                 if (x instanceof Array) {
                     options = x[1] || options;
                     if (typeof options === "string") {
-                        options = {name: options};
+                        options = { name: options };
                     }
                     actionName = options.name || actionName;
 
@@ -236,7 +235,7 @@ export function create(initialState = {}, defState = {}) {
                     delete actionWrapper.lastResult;
 
                     function addToDispatchQueue(type, callback) {
-                        dispatchQueue.push({type, callback});
+                        dispatchQueue.push({ type, callback });
                     }
 
                     function trigger(dispatchData, ...types) {
@@ -398,9 +397,9 @@ export function create(initialState = {}, defState = {}) {
          * create provider
          */
         Provider: props => <Provider store={store}>{props.children}</Provider>,
-        autoSave(options = {key: "appState"}) {
+        autoSave(options = { key: "appState" }) {
             if (typeof options === "string") {
-                options = {key: options};
+                options = { key: options };
             }
 
             storageOptions = options;
@@ -503,9 +502,9 @@ export function create(initialState = {}, defState = {}) {
                 return props;
             });
             const connection = connect(
-                state => ({state}),
+                state => ({ state }),
                 null,
-                ({state}, dispatchProps, ownProps) =>
+                ({ state }, dispatchProps, ownProps) =>
                     reselect(mapper(state, actionWrappers, ownProps)) || ownProps
             );
 
@@ -585,12 +584,12 @@ export function create(initialState = {}, defState = {}) {
 /**
  * Component wrapper for field rendering
  */
-export function Field({$binder, $name, $comp: Comp, $props, ...customProps}) {
+export function Field({ $binder, $name, $comp: Comp, $props, ...customProps }) {
     if (!$binder || !$name || !Comp) return null;
     return $binder($name, params => (
         <Comp
             {...params.props}
-            {...$props && $props({name: $name, comp: Comp, ...params})}
+            {...$props && $props({ name: $name, comp: Comp, ...params })}
             {...customProps}
         />
     ));
@@ -614,7 +613,7 @@ export function form(formMeta = {}, data, formRender) {
                     formChangeWrapper(
                         formMeta.initialData,
                         formMeta.initialData,
-                        {onChange: formMeta.onChange},
+                        { onChange: formMeta.onChange },
                         "value"
                     );
                 }
@@ -681,7 +680,10 @@ export function form(formMeta = {}, data, formRender) {
                     },
                     // meta getter/setter
                     meta(newMeta) {
-                        if (!arguments.length) return fieldMeta;
+                        if (!arguments.length) return fieldMeta || {};
+                        if (typeof newMeta === "string") {
+                            return (fieldMeta || {})[newMeta];
+                        }
                         updateMeta(newMeta, true);
                     }
                 };
@@ -744,9 +746,10 @@ function renderField({
     });
 }
 
-class FormWarning {
-    constructor(data) {
+class FormMessage {
+    constructor(data, type = "error") {
         this.data = data;
+        this.type = type;
     }
 }
 
@@ -774,12 +777,13 @@ export function validateForm({
             formMeta.cancelValidation();
         }
 
-        formMeta.cancelValidation = function () {
+        formMeta.cancelValidation = function() {
             validationCancelled = true;
         };
 
         // clear field validation
         forEachField(formMeta.fields, false, f => {
+            delete f.info;
             delete f.error;
             delete f.warning;
             f.validating = false;
@@ -807,15 +811,19 @@ export function validateForm({
                 }
             });
 
-            if (
-                tryToTriggerMetaChange &&
-                !validationCancelled &&
-                !formMeta.validating
-            ) {
-                formValidationResolve(formMeta);
-            } else if (tryToTriggerMetaChange) {
-                // update UI
-                onChange(formMeta, "meta");
+            if (tryToTriggerMetaChange && !validationCancelled) {
+                if (formMeta.validating) {
+                    onChange(
+                        {
+                            ...formMeta
+                        },
+                        "meta"
+                    );
+                } else {
+                    formValidationResolve({
+                        ...formMeta
+                    });
+                }
             }
         }
 
@@ -823,14 +831,17 @@ export function validateForm({
             data: formData,
             meta: formMeta,
             warning(error) {
-                return new FormWarning(error);
+                return new FormMessage(error, "warning");
             },
-            validate(field, error, isWarning) {
+            info(error) {
+                return new FormMessage(error, "info");
+            },
+            validate(field, error, messageType = "error") {
                 return new Promise(fieldValidationResolve => {
                     if (error) {
                         // extract error from warning
-                        if (error instanceof FormWarning) {
-                            isWarning = true;
+                        if (error instanceof FormMessage) {
+                            messageType = error.type;
                             error = error.data;
                         }
 
@@ -838,27 +849,27 @@ export function validateForm({
                             ? view(pathToLens(field), formMeta.fields)
                             : formMeta;
 
-                        console.log(fieldMeta, field, error);
+                        //console.log(fieldMeta, field, error);
 
                         if (error.then) {
                             validatingFieldCount++;
 
                             function done(asyncError) {
-                                if (asyncError instanceof FormWarning) {
-                                    isWarning = true;
+                                if (asyncError instanceof FormMessage) {
+                                    messageType = asyncError.type;
                                     asyncError = asyncError.data;
                                 }
 
                                 validatingFieldCount--;
                                 fieldMeta.validating = false;
-                                fieldMeta[isWarning ? "warning" : "error"] = asyncError;
+                                fieldMeta[messageType] = asyncError;
                                 fieldValidationResolve(!asyncError);
                                 updateValidationStatus(true);
                             }
 
                             error.then(done, done);
                         } else {
-                            fieldMeta[isWarning ? "warning" : "error"] = error;
+                            fieldMeta[messageType] = error;
                             fieldValidationResolve(false);
                             updateValidationStatus();
                         }
@@ -876,40 +887,49 @@ export function validateForm({
 /**
  * handle form submitting
  */
-function formSubmitWrapper(formData,
-                           {onChange, onSubmit, onValidate, ...formMeta}) {
+function formSubmitWrapper(
+    formData,
+    { onChange, onSubmit, onValidate, ...formMeta }
+) {
     if (!onSubmit) return;
 
     if (formData.validateOnSubmit) {
+        function handleMetaChange(newMeta) {
+            onChange(formData, newMeta, "meta");
+        }
+
         validateForm({
             data: formData,
             meta: formMeta,
-            onChange: newMeta => onChange(formData, newMeta, "meta"),
+            onChange: handleMetaChange,
             onValidate
-        })
-            .then(newMeta => onSubmit(formData, newMeta));
-    }
-    else {
+        }).then(handleMetaChange);
+    } else {
         onSubmit(formData, formMeta);
     }
-
 }
 
 /**
  * handle change and validation
  */
-function formChangeWrapper(initialData,
-                           formData,
-                           {onChange, onSubmit, onValidate, ...formMeta},
-                           changeType) {
+function formChangeWrapper(
+    initialData,
+    formData,
+    { onChange, onSubmit, onValidate, ...formMeta },
+    changeType
+) {
     if (changeType === "value") {
         if (!formMeta.validateOnSubmit) {
+            function handleMetaChange(newMeta) {
+                onChange(formData, newMeta, "meta");
+            }
+
             validateForm({
                 data: formData,
                 meta: formMeta,
-                onChange: newMeta => onChange(formData, newMeta, "meta"),
+                onChange: handleMetaChange,
                 onValidate
-            }).then(newMeta => onChange(formData, newMeta, "meta"));
+            }).then(handleMetaChange);
         }
 
         if (!formMeta.initialData) {
@@ -948,14 +968,14 @@ function forEachField(fields, deep, callback) {
 }
 
 export function fieldArray(options, fieldName, method, ...args) {
-    let {meta: formMeta, data: formData, onChange = noop} = options;
+    let { meta: formMeta, data: formData, onChange = noop } = options;
     if (!method) {
         // create an executor for field array
         const executor = {};
 
         fieldArrayMethods.forEach(
             x =>
-                (executor[x] = function (...args) {
+                (executor[x] = function(...args) {
                     return fieldArray(options, fieldName, x, ...args);
                 })
         );
@@ -1082,7 +1102,8 @@ export function fieldArray(options, fieldName, method, ...args) {
                 );
                 value.push(...args);
                 break;
-            case "move": {
+            case "move":
+            {
                 const [fromIndex, toIndex] = args;
                 if (fromIndex < 0 || fromIndex >= value.length) {
                     throw new Error("fromIndex is not valid");
@@ -1109,7 +1130,8 @@ export function fieldArray(options, fieldName, method, ...args) {
                 }
             }
                 break;
-            case "swap": {
+            case "swap":
+            {
                 const [sourceIndex, targetIndex] = args;
                 if (sourceIndex < 0 || sourceIndex >= value.length) {
                     throw new Error("sourceIndex is not valid");
